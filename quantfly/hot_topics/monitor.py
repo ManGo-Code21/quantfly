@@ -21,12 +21,12 @@ class HotTopicMonitor:
     def fetch_all(self) -> list[dict]:
         """从所有数据源采集热点新闻"""
         items = []
-        items.extend(self._fetch_eastmoney())
+        items.extend(self._fetch_eastmoney_boards())
         items.extend(self._fetch_cls())
         return items
 
-    def _fetch_eastmoney(self) -> list[dict]:
-        """东方财富资金流"""
+    def _fetch_eastmoney_boards(self) -> list[dict]:
+        """东方财富概念板块涨幅榜"""
         try:
             url = "https://push2.eastmoney.com/api/qt/clist/get"
             params = {
@@ -35,39 +35,45 @@ class HotTopicMonitor:
                 "ut": "bd1d9ddb04089700cf9c27f6f7426281",
                 "fltt": 2, "invt": 2,
                 "fid": "f3",
-                "fs": "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23",
+                "fs": "m:90+t:3",
                 "fields": "f12,f14,f3,f6,f8",
-                "filter": "f3>0",
             }
             r = requests.get(url, params=params, headers=EM_HEADERS, timeout=10)
             data = r.json().get("data", {}).get("diff", [])
             result = []
-            for item in data:
+            for item in data[:15]:
+                name = item.get("f14", "")
                 result.append({
-                    "source": "eastmoney",
-                    "title": item.get("f14", ""),
+                    "source": "eastmoney_board",
+                    "title": name,
                     "code": str(item.get("f12", "")),
                     "change_pct": item.get("f3", 0),
                     "amount": item.get("f6", 0),
-                    "topic": "板块",
+                    "topic": self._map_board_to_industry(name),
                     "timestamp": datetime.now().isoformat(),
                 })
+            logger.info(f"东方财富板块采集 {len(result)} 条")
             return result
         except Exception as e:
-            logger.warning(f"东方财富采集失败: {e}")
+            logger.warning(f"东方财富板块采集失败: {e}")
             return []
 
     def _fetch_cls(self) -> list[dict]:
-        """财联社电报"""
-        try:
-            url = "https://www.cls.cn/api/sw?app=CLS&os=web&sv=7.7.5"
-            headers = {
-                "User-Agent": "Mozilla/5.0",
-                "Referer": "https://www.cls.cn/",
-            }
-            r = requests.get(url, headers=headers, timeout=8)
-            # 财联社接口可能有变化，简化为空列表
-            return []
-        except Exception as e:
-            logger.warning(f"财联社采集失败: {e}")
-            return []
+        """财联社电报（需要签名，暂时降级为空）"""
+        return []
+
+    def _map_board_to_industry(self, board_name: str) -> str:
+        """板块名 → 产业名映射"""
+        mapping = {
+            "AI": "AI大模型", "人形机器人": "机器人", "机器人": "机器人",
+            "半导体": "半导体", "芯片": "半导体",
+            "稀土": "稀土永磁", "永磁": "稀土永磁",
+            "商业航天": "商业航天", "低空经济": "商业航天",
+            "量子": "量子计算",
+            "固态电池": "新能源车", "新能源车": "新能源车",
+            "脑机": "脑机接口",
+        }
+        for kw, industry in mapping.items():
+            if kw in board_name:
+                return industry
+        return "其他"

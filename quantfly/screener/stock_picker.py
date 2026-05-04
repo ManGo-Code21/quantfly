@@ -17,7 +17,6 @@ EM_HEADERS = {
     "Referer": "https://quote.eastmoney.com/",
 }
 EM_HIST_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
-EM_QUOTE_URL = "https://push2.eastmoney.com/api/qt/clist/get"
 
 
 def get_kline_em(code: str, count: int = 100) -> pd.DataFrame:
@@ -60,6 +59,9 @@ class TopicDrivenScreener:
     3. 分时：量比≥1.5，在均价线上，主动买入强度≥0.7
     """
 
+    def __init__(self):
+        self._industry_stocks_cache = {}
+
     def screen(self, industry: str, top_n: int = 10) -> list[dict]:
         """
         对产业相关板块执行选股扫描
@@ -71,15 +73,16 @@ class TopicDrivenScreener:
         Returns:
             [{code, name, total_score, is_buyable, signals, ...}]
         """
-        from quantfly.hot_topics.industry_mapper import INDUSTRY_SECTOR_MAP
+        from quantfly.hot_topics.industry_mapper import get_eastmoney_sector_stocks
 
-        # 获取该产业的成分股（简化：用 INDUSTRY_SECTOR_MAP 的关联股票）
-        stocks = self._get_industry_stocks(industry)
+        stocks = get_eastmoney_sector_stocks(industry)
         if not stocks:
-            stocks = self._get_default_stocks()
+            logger.warning(f"[{industry}] 未找到成分股")
+            return []
 
+        logger.info(f"[{industry}] 开始扫描 {len(stocks[:30])} 只成分股...")
         results = []
-        for code, name in stocks[:top_n * 2]:  # 多取一些，过滤后返回top_n
+        for code, name in stocks[:30]:  # 取前30只扫描
             df = get_kline_em(code, count=100)
             if df.empty or len(df) < 25:
                 continue
@@ -95,6 +98,10 @@ class TopicDrivenScreener:
                 "total_score": analysis.get("score", 0),
                 "is_buyable": analysis.get("is_buyable", False),
                 "is_sellable": analysis.get("is_sellable", False),
+                "close": analysis.get("close", 0),
+                "chg_pct": analysis.get("chg_pct", 0),
+                "vol_ratio": analysis.get("vol_ratio", 0),
+                "rel_pos": analysis.get("rel_pos", 0),
                 "theme_score": 1.5 if analysis.get("signals", {}).get("题材_涨幅符合") else 0,
                 "chips_score": sum([
                     3.0 if analysis.get("signals", {}).get("筹码_位置合适") else 0,
@@ -112,18 +119,7 @@ class TopicDrivenScreener:
 
         # 按综合评分排序
         results.sort(key=lambda x: x["total_score"], reverse=True)
+        buyable = [r for r in results if r["is_buyable"]]
+        logger.info(f"[{industry}] 扫描完成: {len(results)}只候选, {len(buyable)}只可买")
+
         return results[:top_n]
-
-    def _get_industry_stocks(self, industry: str) -> list[tuple]:
-        """获取产业关联股票（简化版）"""
-        # 这里应该调用东方财富板块成分接口
-        # 暂时返回空列表，触发默认股池
-        return []
-
-    def _get_default_stocks(self) -> list[tuple]:
-        """默认股池（各行业龙头）"""
-        return [
-            ("300059", "东方财富"), ("002594", "比亚迪"),
-            ("300750", "宁德时代"), ("600519", "贵州茅台"),
-            ("601318", "中国平安"), ("600036", "招商银行"),
-        ]
