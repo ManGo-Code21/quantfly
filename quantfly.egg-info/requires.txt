@@ -1,0 +1,7 @@
+aiohttp
+fastapi
+numpy
+pandas
+playwright
+requests
+uvicorn

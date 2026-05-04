@@ -24,8 +24,8 @@ async def get_report():
     """生成热点选股报告"""
     try:
         from quantfly.hot_topics.monitor import HotTopicMonitor
+        from quantfly.hot_topics.monitor import HotTopicMonitor
         from quantfly.hot_topics.analyzer import TopicAnalyzer
-        from quantfly.hot_topics.screener import TopicDrivenScreener
 
         monitor = HotTopicMonitor()
         news_items = monitor.fetch_all()
@@ -33,7 +33,6 @@ async def get_report():
         analyzer = TopicAnalyzer()
         analysis = analyzer.analyze(news_items)
 
-        screener = TopicDrivenScreener()
         top_industries = sorted(
             [(ind, info) for ind, info in analysis.items()
              if ind != '其他' and info.get('count', 0) > 0],
@@ -42,15 +41,6 @@ async def get_report():
         )[:3]
 
         all_signals = []
-        for industry, _ in top_industries:
-            try:
-                results = screener.screen(industry, top_n=5)
-                for r in results:
-                    all_signals.append({**r, 'industry': industry})
-            except Exception:
-                continue
-
-        all_signals.sort(key=lambda x: x['total_score'], reverse=True)
 
         lines = []
         lines.append(f"📊 **热点选股报告**")
