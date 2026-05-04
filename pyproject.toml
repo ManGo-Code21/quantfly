@@ -1,0 +1,19 @@
+[project]
+name = "quantfly"
+version = "0.1.0"
+description = "A股量化交易框架"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pandas",
+    "numpy",
+    "requests",
+    "aiohttp",
+    "playwright",
+]
+
+[project.optional-dependencies]
+qmt = "xtquant"
+pyqt = "PyQt6"
+dev = "pytest"
