@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuantFly - A股量化</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background: #0d1117; color: #e6edf3; }
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; }
+        .text-muted { color: #8b949e !important; }
+        .btn-primary { background: #238636; border: none; }
+        .btn-primary:hover { background: #2ea043; }
+        .badge-green { background: #238636; }
+        .badge-yellow { background: #9e6a03; }
+        .kline-container { background: #0d1117; border-radius: 8px; padding: 10px; }
+        .nav-tabs { border-bottom: 1px solid #30363d; }
+        .nav-tabs .nav-link { color: #8b949e; border: none; }
+        .nav-tabs .nav-link.active { color: #e6edf3; background: transparent; border-bottom: 2px solid #238636; }
+        .table { color: #e6edf3; }
+        .table-hover tbody tr:hover { background: #1c2129; }
+        .stock-buyable { color: #3fb950; font-weight: bold; }
+        .stock-watch { color: #d29922; }
+        #kline_chart { height: 400px; }
+    </style>
+</head>
+<body>
+<div class="container-fluid py-3">
+    <!-- 顶栏 -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-0"><i class="bi bi-graph-up-arrow text-success"></i> QuantFly</h4>
+            <small class="text-muted">蜻蜓量化 · 热点监控 → 选股 → 回测 → 实盘</small>
+        </div>
+        <div>
+            <span class="badge badge-green me-2" id="connectionStatus">
+                <i class="bi bi-circle-fill" style="font-size:0.5rem"></i> 连接正常
+            </span>
+            <button class="btn btn-sm btn-outline-light" onclick="location.reload()">
+                <i class="bi bi-arrow-clockwise"></i> 刷新
+            </button>
+        </div>
+    </div>
+
+    <!-- 标签页 -->
+    <ul class="nav nav-tabs mb-3" id="mainTabs">
+        <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#tabHotTopics">热点监控</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#tabScreener">选股</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#tabBacktest">回测</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#tabTrading">交易</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#tabKline">K线</a>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- 热点监控 -->
+        <div class="tab-pane fade show active" id="tabHotTopics">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card p-3 mb-3">
+                        <h6><i class="bi bi-newspaper"></i> 今日热点</h6>
+                        <div id="hotNews" class="small text-muted">加载中...</div>
+                    </div>
+                    <div class="card p-3">
+                        <h6><i class="bi bi-building"></i> 产业热度</h6>
+                        <div id="industryList">加载中...</div>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="card p-3">
+                        <h6><i class="bi bi-card-list"></i> 选股信号</h6>
+                        <div id="signalList">加载中...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 选股 -->
+        <div class="tab-pane fade" id="tabScreener">
+            <div class="row mb-3">
+                <div class="col-auto">
+                    <select class="form-select" id="screenerIndustry">
+                        <option value="AI大模型">AI大模型</option>
+                        <option value="半导体">半导体</option>
+                        <option value="机器人">机器人</option>
+                        <option value="商业航天">商业航天</option>
+                        <option value="新能源车">新能源车</option>
+                        <option value="稀土永磁">稀土永磁</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-primary" onclick="runScreener()">
+                        <i class="bi bi-search"></i> 执行选股
+                    </button>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-outline-light" onclick="runBacktest()">
+                        <i class="bi bi-graph-up"></i> 回测验证
+                    </button>
+                </div>
+            </div>
+            <div id="screenerResults">选择产业后点击「执行选股」</div>
+        </div>
+
+        <!-- 回测 -->
+        <div class="tab-pane fade" id="tabBacktest">
+            <div class="row mb-3">
+                <div class="col-auto">
+                    <input type="date" class="form-control" id="btStart" value="2024-01-01">
+                </div>
+                <div class="col-auto">
+                    <input type="date" class="form-control" id="btEnd" value="2025-06-03">
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-primary" onclick="runBacktest()">
+                        <i class="bi bi-play-fill"></i> 运行回测
+                    </button>
+                </div>
+            </div>
+            <div class="row mb-3" id="backtestMetrics" style="display:none">
+                <div class="col-md-3"><div class="card p-3 text-center"><h3 id="mTotalReturn">-</h3><small>总收益率</small></div></div>
+                <div class="col-md-3"><div class="card p-3 text-center"><h3 id="mTrades">-</h3><small>交易次数</small></div></div>
+                <div class="col-md-3"><div class="card p-3 text-center"><h3 id="mWinRate">-</h3><small>胜率</small></div></div>
+                <div class="col-md-3"><div class="card p-3 text-center"><h3 id="mFinalValue">-</h3><small>最终资产</small></div></div>
+            </div>
+            <div id="backtestResults"></div>
+        </div>
+
+        <!-- 交易 -->
+        <div class="tab-pane fade" id="tabTrading">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card p-3 mb-3">
+                        <h6><i class="bi bi-list-ul"></i> 当前持仓</h6>
+                        <div id="positionList">暂无持仓</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card p-3 mb-3">
+                        <h6><i class="bi bi-lightning"></i> 快速操作</h6>
+                        <button class="btn btn-sm btn-outline-light me-2" onclick="scanSignals()">扫描信号</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="clearPositions()">清仓</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- K线 -->
+        <div class="tab-pane fade" id="tabKline">
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <input type="text" class="form-control" id="klineCode" placeholder="股票代码 如: 300059">
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-primary" onclick="loadKline()">
+                        <i class="bi bi-chart-bar"></i> 加载K线
+                    </button>
+                </div>
+            </div>
+            <div class="kline-container">
+                <div id="kline_chart"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- TradingView Lightweight Charts -->
+<script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+const API_BASE = 'http://localhost:8765';
+
+async function api(path) {
+    try {
+        const r = await fetch(API_BASE + path);
+        if (!r.ok) throw new Error('API error: ' + r.status);
+        return await r.json();
+    } catch (e) {
+        console.error(e);
+        return null;
+    }
+}
+
+// 热点监控
+async function loadHotTopics() {
+    const data = await api('/api/hot-topics/report');
+    if (!data) return;
+    document.getElementById('hotNews').innerHTML = data.report || '暂无数据';
+}
+
+// 选股
+async function runScreener() {
+    const industry = document.getElementById('screenerIndustry').value;
+    const data = await api('/api/screener/screen', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({industry, top_n: 10})
+    });
+    if (!data || !data.stocks) {
+        document.getElementById('screenerResults').innerHTML = '<div class="text-danger">请求失败</div>';
+        return;
+    }
+    let html = '<table class="table table-hover"><thead><tr><th>代码</th><th>名称</th><th>综合</th><th>题材</th><th>筹码</th><th>分时</th><th>信号</th></tr></thead><tbody>';
+    for (const s of data.stocks) {
+        const tag = s.is_buyable ? '🟢可买' : '🟡观察';
+        const tagClass = s.is_buyable ? 'stock-buyable' : 'stock-watch';
+        const sigs = s.signals ? s.signals.slice(0,3).join(', ') : '';
+        html += `<tr>
+            <td>${s.code}</td>
+            <td>${s.name}</td>
+            <td class="${tagClass}">${tag}</td>
+            <td>${s.total_score.toFixed(0)}</td>
+            <td>${s.theme_score.toFixed(0)}</td>
+            <td>${s.chips_score.toFixed(0)}</td>
+            <td>${s.momentum_score.toFixed(0)}</td>
+            <td><small>${sigs}</small></td>
+        </tr>`;
+    }
+    html += '</tbody></table>';
+    document.getElementById('screenerResults').innerHTML = html;
+}
+
+// 回测
+async function runBacktest() {
+    const start = document.getElementById('btStart').value;
+    const end = document.getElementById('btEnd').value;
+    const data = await api('/api/backtest/run', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({start_date: start, end_date: end})
+    });
+    if (!data || !data.metrics) {
+        document.getElementById('backtestResults').innerHTML = '<div class="text-danger">回测失败</div>';
+        return;
+    }
+    const m = data.metrics;
+    document.getElementById('backtestMetrics').style.display = 'flex';
+    document.getElementById('mTotalReturn').textContent = (m.total_return || 0).toFixed(2) + '%';
+    document.getElementById('mTrades').textContent = data.total_trades || 0;
+    document.getElementById('mWinRate').textContent = (m.win_rate || 0).toFixed(1) + '%';
+    document.getElementById('mFinalValue').textContent = '¥' + ((m.final_value || 0).toLocaleString());
+}
+
+// K线图
+let chart = null;
+let candleSeries = null;
+let volumeSeries = null;
+
+function initChart() {
+    if (chart) return;
+    chart = LightweightCharts.createChart(document.getElementById('kline_chart'), {
+        width: document.getElementById('kline_chart').clientWidth,
+        height: 400,
+        layout: { background: '#0d1117', textColor: '#8b949e' },
+        grid: { vertLines: { color: '#21262d' }, horzLines: { color: '#21262d' } },
+    });
+    candleSeries = chart.addCandlestickSeries({ upColor: '#3fb950', downColor: '#f85149' });
+    volumeSeries = chart.addHistogramSeries({ color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: '' });
+}
+
+async function loadKline() {
+    initChart();
+    const code = document.getElementById('klineCode').value.trim();
+    if (!code) return;
+    const data = await api('/api/backtest/kline/' + code);
+    if (!data || !data.candles) {
+        // 演示数据
+        const demo = generateDemoData();
+        candleSeries.setData(demo.candles);
+        volumeSeries.setData(demo.volumes);
+        chart.timeScale().fitContent();
+        return;
+    }
+    candleSeries.setData(data.candles);
+    volumeSeries.setData(data.volumes);
+    chart.timeScale().fitContent();
+}
+
+function generateDemoData() {
+    const candles = [];
+    const volumes = [];
+    let price = 10;
+    const now = Math.floor(Date.now() / 1000);
+    for (let i = 365; i >= 0; i--) {
+        const t = now - i * 86400;
+        price *= (1 + (Math.random() - 0.48) * 0.03);
+        const open = price;
+        const high = price * (1 + Math.random() * 0.02);
+        const low = price * (1 - Math.random() * 0.02);
+        const close = price * (1 + (Math.random() - 0.5) * 0.02);
+        const vol = Math.random() * 10000000;
+        candles.push({ time: t, open, high, low, close });
+        volumes.push({ time: t, value: vol, color: close >= open ? 'rgba(63,185,80,0.3)' : 'rgba(248,81,73,0.3)' });
+    }
+    return { candles, volumes };
+}
+
+// 持仓
+async function loadPositions() {
+    const data = await api('/api/trading/positions');
+    if (!data) return;
+    if (!data.positions || data.positions.length === 0) {
+        document.getElementById('positionList').innerHTML = '<span class="text-muted">暂无持仓</span>';
+        return;
+    }
+    let html = '<table class="table table-sm"><thead><tr><th>代码</th><th>名称</th><th>数量</th><th>均价</th></tr></thead><tbody>';
+    for (const p of data.positions) {
+        html += `<tr><td>${p.code}</td><td>${p.name}</td><td>${p.volume}</td><td>${p.avg_price}</td></tr>`;
+    }
+    html += '</tbody></table>';
+    document.getElementById('positionList').innerHTML = html;
+}
+
+// 扫描信号
+async function scanSignals() {
+    await runScreener();
+}
+
+// 清理持仓
+async function clearPositions() {
+    if (!confirm('确定要清仓吗？')) return;
+    alert('stub: 清仓功能');
+}
+
+// 启动
+loadHotTopics();
+loadPositions();
+</script>
+</body>
+</html>
