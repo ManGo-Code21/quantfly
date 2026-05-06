@@ -84,12 +84,13 @@ def get_xtquant_daily(codes: list[str], count: int = 300) -> dict[str, pd.DataFr
                 pass
             time.sleep(0.02)  # 避免太快
 
-        # 批量获取 K 线
+        # 批量获取 K 线（前复权，与东方财富 fqt=1 对齐）
         result_raw = xtdata.get_market_data(
             stock_list=mqcodes,
             period="1d",
             count=count,
             field_list=fields,
+            dividend_type="front",
         )
 
         # 解析返回格式: {field: DataFrame(index=股票代码, columns=日期)}
