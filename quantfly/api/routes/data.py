@@ -387,3 +387,65 @@ async def get_calendar(
     except Exception as e:
         logger.error(f"Calendar failed: {e}", exc_info=True)
         raise HTTPException(500, str(e))
+
+
+# ══════════════════════════════════════════════════════════
+# 资金流向（东方财富）
+# ══════════════════════════════════════════════════════════
+
+EM_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "Referer": "https://quote.eastmoney.com/",
+}
+
+@router.get("/data/money_flow")
+async def get_money_flow(
+    codes: str = Query(..., description="逗号分隔，如 000001,600000"),
+    days: int = Query(5, ge=1, le=250),
+):
+    """
+    资金流向 — 主力净流入、超大单/大单/中单/小单净流入
+    
+    数据源: 东方财富 (QMT免费版无此字段)
+    字段: date, main_net(主力净流入), super_large(超大单),
+          large(大单), medium(中单), small(小单)
+    单位: 元
+    """
+    import requests as req
+
+    code_list = [c.strip() for c in codes.split(",") if c.strip()]
+    if len(code_list) > 50:
+        raise HTTPException(400, "最多50只")
+
+    url = "https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get"
+    result = {}
+
+    for code in code_list:
+        secid = f"1.{code}" if code.startswith(("6", "9")) else f"0.{code}"
+        try:
+            r = req.get(url, params={
+                "secid": secid,
+                "fields1": "f1,f2,f3,f7",
+                "fields2": "f51,f52,f53,f54,f55,f56",
+                "lmt": days,
+                "klt": "101",
+            }, headers=EM_HEADERS, timeout=10)
+
+            klines = r.json().get("data", {}).get("klines", [])
+            flows = []
+            for k in klines:
+                p = k.split(",")
+                flows.append({
+                    "date": p[0],
+                    "main_net": _safe_float(p[1]),      # 主力净流入
+                    "small": _safe_float(p[2]),          # 小单净流入
+                    "medium": _safe_float(p[3]),         # 中单净流入
+                    "large": _safe_float(p[4]),          # 大单净流入
+                    "super_large": _safe_float(p[5]),    # 超大单净流入
+                })
+            if flows:
+                result[code] = flows
+        except Exception as e:
+            logger.warning(f"Money flow failed for {code}: {e}")
+
+    return {"money_flow": result, "count": len(result), "days": days}

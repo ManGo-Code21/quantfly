@@ -31,6 +31,7 @@ def _run_rank_task(task_id: str, n_stocks: int, days: int):
         from analyze_factor_ic import (
             get_xtquant_daily, get_sample_stocks, calc_features,
             calc_cross_section_ic, rank_factors, FEATURE_COLS,
+            fetch_money_flow_batch, merge_money_flow_factors,
         )
         import numpy as np
         import pandas as pd
@@ -66,6 +67,11 @@ def _run_rank_task(task_id: str, n_stocks: int, days: int):
         for col in FEATURE_COLS + ["future_ret"]:
             if col in df_all.columns:
                 df_all[col] = df_all[col].replace([np.inf, -np.inf], np.nan).fillna(0)
+
+        # 3b. 资金流向因子
+        mf_data = fetch_money_flow_batch(codes[:n_stocks], days=days + 30)
+        if mf_data:
+            df_all = merge_money_flow_factors(df_all, mf_data)
 
         # 4. IC分析
         ic_results = calc_cross_section_ic(df_all)

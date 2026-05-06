@@ -40,6 +40,11 @@ FEATURE_COLS = [
     "pct_chg", "amplitude", "close_ma20_ratio",
     "ret_vs_ma5", "ret_vs_ma10", "vol_stability",
     "ret_accel", "vol_growth", "vol_momentum", "rsi14",
+    # 资金流向因子（东方财富）
+    "main_net_ratio",    # 主力净流入 / 成交额
+    "super_large_ratio",  # 超大单净流入 / 成交额
+    "flow_divergence",    # 资金流向与价格背离
+    "main_net_5d",        # 5日主力净流入累计 / 5日均成交额
 ]
 
 
@@ -203,6 +208,102 @@ def get_sample_stocks(n: int = 100) -> list[str]:
 
 
 # ============================================================
+# 资金流向因子
+# ============================================================
+MF_URL = "https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get"
+MF_HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://quote.eastmoney.com/"}
+
+def fetch_money_flow_batch(codes: list[str], days: int = 300) -> dict[str, pd.DataFrame]:
+    """批量获取资金流向，返回 {code: DataFrame(index=date, cols=[主力和超大单等])}"""
+    result = {}
+    for code in codes:
+        clean = code.strip()
+        secid = f"1.{clean}" if clean.startswith(("6", "9")) else f"0.{clean}"
+        try:
+            r = requests.get(MF_URL, params={
+                "secid": secid,
+                "fields1": "f1,f2,f3,f7",
+                "fields2": "f51,f52,f53,f54,f55,f56",
+                "lmt": days, "klt": "101",
+            }, headers=MF_HEADERS, timeout=10)
+            klines = r.json().get("data", {}).get("klines", [])
+            if not klines:
+                continue
+            records = []
+            for k in klines:
+                p = k.split(",")
+                records.append({
+                    "date": pd.to_datetime(p[0]),
+                    "main_net": float(p[1]),        # 主力净流入
+                    "small_net": float(p[2]),        # 小单
+                    "medium_net": float(p[3]),       # 中单
+                    "large_net": float(p[4]),        # 大单
+                    "super_large_net": float(p[5]),  # 超大单
+                })
+            result[code] = pd.DataFrame(records).set_index("date").sort_index()
+        except Exception:
+            pass
+        time.sleep(0.1)
+    logger.info(f"资金流向获取: {len(result)}/{len(codes)} 只")
+    return result
+
+
+def merge_money_flow_factors(df_all: pd.DataFrame, mf_data: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    """将资金流向因子合并到因子DataFrame"""
+    if not mf_data:
+        return df_all
+
+    # 为每条记录匹配当日资金流向
+    new_cols = {"main_net_ratio": [], "super_large_ratio": [], "flow_divergence": [], "main_net_5d": []}
+
+    for _, row in df_all.iterrows():
+        code = row.get("code", "")
+        date = row.get("date")
+        mf_df = mf_data.get(str(code))
+        default = {"main_net_ratio": 0, "super_large_ratio": 0, "flow_divergence": 0, "main_net_5d": 0}
+
+        if mf_df is None or date is None or date not in mf_df.index:
+            for k in new_cols:
+                new_cols[k].append(0)
+            continue
+
+        # 找到日期位置
+        idx = mf_df.index.get_loc(date)
+        if isinstance(idx, slice):
+            idx = idx.start
+        mf_row = mf_df.iloc[idx]
+
+        main_net = mf_row["main_net"]
+        super_large = mf_row["super_large_net"]
+        pct_chg = row.get("pct_chg", 0)
+
+        # 因子1: 主力净流入 / |成交额| (归一化)
+        amount_est = abs(main_net) + abs(mf_row["small_net"]) + abs(mf_row["medium_net"]) + abs(mf_row["large_net"]) + abs(super_large) + 1
+        new_cols["main_net_ratio"].append(main_net / amount_est)
+
+        # 因子2: 超大单占比
+        new_cols["super_large_ratio"].append(super_large / amount_est if amount_est > 0 else 0)
+
+        # 因子3: 资金流向与价格背离 (价格涨但主力流出 = 负)
+        new_cols["flow_divergence"].append(-main_net / (amount_est + 1) * np.sign(pct_chg))
+
+        # 因子4: 5日主力净流入累计 / 5日总成交额
+        if idx >= 4:
+            hist = mf_df.iloc[max(0, idx - 4):idx + 1]
+            main_5d = hist["main_net"].sum()
+            total_5d = (hist["main_net"].abs() + hist["small_net"].abs() + hist["medium_net"].abs() +
+                        hist["large_net"].abs() + hist["super_large_net"].abs()).sum() + 1
+            new_cols["main_net_5d"].append(main_5d / total_5d)
+        else:
+            new_cols["main_net_5d"].append(0)
+
+    for k, v in new_cols.items():
+        df_all[k] = v
+
+    return df_all
+
+
+# ============================================================
 # 因子计算（与 train_ranker.py / qmt_live_rank.py 完全对齐）
 # ============================================================
 def calc_features(df: pd.DataFrame, future_n: int = 5) -> pd.DataFrame:
@@ -357,6 +458,14 @@ def main():
     for col in FEATURE_COLS + ["future_ret"]:
         if col in df_all.columns:
             df_all[col] = df_all[col].replace([np.inf, -np.inf], np.nan).fillna(0)
+
+    # 3b. 资金流向因子
+    t_mf = time.time()
+    mf_data = fetch_money_flow_batch(stocks, days=args.days + 30)
+    if mf_data:
+        df_all = merge_money_flow_factors(df_all, mf_data)
+        logger.info(f"资金流向因子: {time.time() - t_mf:.1f}s")
+
     feat_time = time.time() - t1
     logger.info(f"因子计算: {len(df_all)}条, {feat_time:.1f}s")
 

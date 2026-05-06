@@ -49,6 +49,7 @@ async def root():
                 "GET  /data/kline?code=000001&period=1d&count=100",
                 "GET  /data/minute?code=000001&period=5m&count=240",
                 "GET  /data/tick?code=000001&count=100",
+                "GET  /data/money_flow?codes=000001&days=5",
                 "GET  /data/sectors",
                 "GET  /data/sector/stocks?sector=沪深300",
                 "GET  /data/index_weight?index=000300",
