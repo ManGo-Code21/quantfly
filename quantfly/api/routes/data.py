@@ -416,7 +416,8 @@ def _fetch_money_flow_em(code: str, days: int) -> list[dict] | None:
         "fields2": EM_FIELDS,
         "lmt": days,
         "klt": "101",
-    }, headers=EM_HEADERS, timeout=8)
+    }, headers=EM_HEADERS, timeout=8,
+       proxies={"http": None, "https": None})  # 绕过FClash代理
     klines = r.json().get("data", {}).get("klines", [])
     if not klines:
         return None
@@ -474,13 +475,19 @@ def _fetch_money_flow_ak(code: str, days: int) -> list[dict] | None:
 def _get_money_flow_one(code: str, days: int) -> tuple[list[dict] | None, str]:
     """单只股票资金流向: 东方财富 → akshare，返回 (data, source)"""
     # 1. 东方财富（主力）
-    data = _fetch_money_flow_em(code, days)
-    if data:
-        return data, "eastmoney"
+    try:
+        data = _fetch_money_flow_em(code, days)
+        if data:
+            return data, "eastmoney"
+    except Exception:
+        pass
     # 2. akshare（备选）
-    data = _fetch_money_flow_ak(code, days)
-    if data:
-        return data, "akshare"
+    try:
+        data = _fetch_money_flow_ak(code, days)
+        if data:
+            return data, "akshare"
+    except Exception:
+        pass
     return None, "none"
 
 

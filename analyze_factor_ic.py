@@ -249,7 +249,8 @@ def fetch_money_flow_batch(codes: list[str], days: int = 300) -> dict[str, pd.Da
                 "fields1": "f1,f2,f3,f7",
                 "fields2": "f51,f52,f53,f54,f55,f56",
                 "lmt": days, "klt": "101",
-            }, headers=MF_HEADERS, timeout=8)
+            }, headers=MF_HEADERS, timeout=8,
+               proxies={"http": None, "https": None})
             klines = r.json().get("data", {}).get("klines", [])
             if klines:
                 records = _parse_em(klines)
