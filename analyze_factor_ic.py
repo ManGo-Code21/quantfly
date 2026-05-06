@@ -104,6 +104,9 @@ def get_xtquant_daily(codes: list[str], count: int = 300) -> dict[str, pd.DataFr
                     rows[field] = df.loc[mqcode]
 
             if len(rows) >= 4:  # 至少 OHLC 四个字段
+                # 跳过数据不足的股票（loc返回scalar = 只有1行数据）
+                if any(not isinstance(v, pd.Series) for v in rows.values()):
+                    continue
                 out = pd.DataFrame(rows)
                 out.index = pd.to_datetime(out.index.astype(str), format="%Y%m%d")
                 out = out.sort_index().tail(count)
