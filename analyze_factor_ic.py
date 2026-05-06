@@ -204,7 +204,10 @@ def _get_eastmoney_leaders(n: int = 200) -> list[str]:
 
 def get_sample_stocks(n: int = 100) -> list[str]:
     """统一入口：优先中证500，失败则降级行业龙头"""
-    return get_csi500_stocks()
+    stocks = get_csi500_stocks()
+    if stocks:
+        return stocks[:n]  # 截取前 n 只
+    return get_em_industry_leaders(n)
 
 
 # ============================================================
@@ -448,12 +451,19 @@ def main():
         if col in df_all.columns:
             df_all[col] = df_all[col].replace([np.inf, -np.inf], np.nan).fillna(0)
 
-    # 3b. 资金流向因子
+    # 3b. 资金流向因子（可选，失败不影响主流程）
     t_mf = time.time()
-    mf_data = fetch_money_flow_batch(stocks, days=args.days + 30)
-    if mf_data:
-        df_all = merge_money_flow_factors(df_all, mf_data)
-        logger.info(f"资金流向因子: {time.time() - t_mf:.1f}s")
+    try:
+        mf_data = fetch_money_flow_batch(stocks, days=args.days + 30)
+        if mf_data:
+            df_all = merge_money_flow_factors(df_all, mf_data)
+            logger.info(f"资金流向因子: {time.time() - t_mf:.1f}s")
+    except Exception as e:
+        logger.warning(f"资金流向因子跳过: {e}")
+    # 确保所有 FEATURE_COLS 列存在
+    for col in FEATURE_COLS:
+        if col not in df_all.columns:
+            df_all[col] = 0
 
     feat_time = time.time() - t1
     logger.info(f"因子计算: {len(df_all)}条, {feat_time:.1f}s")
