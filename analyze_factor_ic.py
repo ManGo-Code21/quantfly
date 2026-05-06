@@ -159,8 +159,21 @@ def get_eastmoney_daily(codes: list[str], count: int = 300) -> dict[str, pd.Data
     return result
 
 
-def get_sample_stocks(n: int = 100) -> list[str]:
-    """东方财富各行业龙头"""
+def get_csi500_stocks() -> list[str]:
+    """获取中证500成分股（akshare，固定股票池）"""
+    try:
+        import akshare as ak
+        df = ak.index_stock_cons(symbol="000905")
+        codes = df["品种代码"].tolist()
+        logger.info(f"中证500成分股: {len(codes)} 只")
+        return codes
+    except Exception as e:
+        logger.warning(f"中证500获取失败({e})，降级行业龙头")
+        return _get_eastmoney_leaders(n=200)
+
+
+def _get_eastmoney_leaders(n: int = 200) -> list[str]:
+    """东方财富各行业龙头（备用）"""
     EM_HEADERS = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
         "Referer": "https://quote.eastmoney.com/",
@@ -179,6 +192,11 @@ def get_sample_stocks(n: int = 100) -> list[str]:
         return [str(x["f12"]) for x in data[:n]]
     except Exception:
         return []
+
+
+def get_sample_stocks(n: int = 100) -> list[str]:
+    """统一入口：优先中证500，失败则降级行业龙头"""
+    return get_csi500_stocks()
 
 
 # ============================================================
