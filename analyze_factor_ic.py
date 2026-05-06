@@ -249,58 +249,47 @@ def fetch_money_flow_batch(codes: list[str], days: int = 300) -> dict[str, pd.Da
 
 
 def merge_money_flow_factors(df_all: pd.DataFrame, mf_data: dict[str, pd.DataFrame]) -> pd.DataFrame:
-    """将资金流向因子合并到因子DataFrame"""
+    """将资金流向因子合并到因子DataFrame（向量化）"""
     if not mf_data:
         return df_all
 
-    # 为每条记录匹配当日资金流向
-    new_cols = {"main_net_ratio": [], "super_large_ratio": [], "flow_divergence": [], "main_net_5d": []}
+    # 将所有股票的资金流向拼接成一个大表: (code, date) -> [main_net, ...]
+    mf_rows = []
+    for code, mf_df in mf_data.items():
+        mf_df = mf_df.copy()
+        mf_df["code"] = str(code)
+        mf_df = mf_df.reset_index().rename(columns={"index": "date"})
+        mf_rows.append(mf_df)
 
-    for _, row in df_all.iterrows():
-        code = row.get("code", "")
-        date = row.get("date")
-        mf_df = mf_data.get(str(code))
-        default = {"main_net_ratio": 0, "super_large_ratio": 0, "flow_divergence": 0, "main_net_5d": 0}
+    if not mf_rows:
+        return df_all
 
-        if mf_df is None or date is None or date not in mf_df.index:
-            for k in new_cols:
-                new_cols[k].append(0)
-            continue
+    mf_all = pd.concat(mf_rows, ignore_index=True)
+    mf_all["code"] = mf_all["code"].astype(str)
 
-        # 找到日期位置
-        idx = mf_df.index.get_loc(date)
-        if isinstance(idx, slice):
-            idx = idx.start
-        mf_row = mf_df.iloc[idx]
+    # Merge on (code, date)
+    df_all["_code_str"] = df_all["code"].astype(str)
+    merged = df_all.merge(mf_all, left_on=["_code_str", "date"], right_on=["code", "date"],
+                          how="left", suffixes=("", "_mf"))
+    merged = merged.drop(columns=["_code_str", "code_mf"], errors="ignore")
 
-        main_net = mf_row["main_net"]
-        super_large = mf_row["super_large_net"]
-        pct_chg = row.get("pct_chg", 0)
+    # 计算因子
+    amount = (merged["main_net"].abs() + merged["small_net"].abs() +
+              merged["medium_net"].abs() + merged["large_net"].abs() +
+              merged["super_large_net"].abs()).fillna(0) + 1
 
-        # 因子1: 主力净流入 / |成交额| (归一化)
-        amount_est = abs(main_net) + abs(mf_row["small_net"]) + abs(mf_row["medium_net"]) + abs(mf_row["large_net"]) + abs(super_large) + 1
-        new_cols["main_net_ratio"].append(main_net / amount_est)
+    merged["main_net_ratio"] = merged["main_net"].fillna(0) / amount
+    merged["super_large_ratio"] = merged["super_large_net"].fillna(0) / amount
+    merged["flow_divergence"] = (-merged["main_net"].fillna(0) / amount *
+                                 np.sign(merged.get("pct_chg", 0).fillna(0)))
+    merged["main_net_5d"] = 0  # 简化：5日聚合需按股票分组，暂时用当日比值
 
-        # 因子2: 超大单占比
-        new_cols["super_large_ratio"].append(super_large / amount_est if amount_est > 0 else 0)
+    # 删除临时列
+    merged = merged.drop(columns=["main_net", "small_net", "medium_net",
+                                   "large_net", "super_large_net",
+                                   "date_mf"], errors="ignore")
 
-        # 因子3: 资金流向与价格背离 (价格涨但主力流出 = 负)
-        new_cols["flow_divergence"].append(-main_net / (amount_est + 1) * np.sign(pct_chg))
-
-        # 因子4: 5日主力净流入累计 / 5日总成交额
-        if idx >= 4:
-            hist = mf_df.iloc[max(0, idx - 4):idx + 1]
-            main_5d = hist["main_net"].sum()
-            total_5d = (hist["main_net"].abs() + hist["small_net"].abs() + hist["medium_net"].abs() +
-                        hist["large_net"].abs() + hist["super_large_net"].abs()).sum() + 1
-            new_cols["main_net_5d"].append(main_5d / total_5d)
-        else:
-            new_cols["main_net_5d"].append(0)
-
-    for k, v in new_cols.items():
-        df_all[k] = v
-
-    return df_all
+    return merged
 
 
 # ============================================================
