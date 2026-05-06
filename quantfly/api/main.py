@@ -18,13 +18,14 @@ app.add_middleware(
 )
 
 # Routes
-from quantfly.api.routes import hot_topics, screener, backtest, kline, trading, live
+from quantfly.api.routes import hot_topics, screener, backtest, kline, trading, live, data
 app.include_router(hot_topics.router)
 app.include_router(screener.router)
 app.include_router(backtest.router)
 app.include_router(kline.router)
 app.include_router(trading.router)
 app.include_router(live.router)
+app.include_router(data.router)
 
 # Static files (frontend)
 static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ui", "static")
@@ -37,16 +38,23 @@ async def root():
     return {
         "name": "QuantFly",
         "version": "0.2.0",
-        "endpoints": [
-            "/live/health",
-            "/live/rank?days=300",
-            "/live/factors",
-            "/hot/topics",
-            "/hot/industries",
-            "/screener/screen/{industry}",
-            "/backtest/run/{industry}",
-            "/kline/{code}",
-        ],
+        "endpoints": {
+            "live": [
+                "GET  /live/health",
+                "GET  /live/rank?days=300&stocks=500",
+                "POST /live/factors  {\"codes\":[\"000001\"],\"days\":100}",
+            ],
+            "data": [
+                "GET  /data/quote?codes=000001,600000",
+                "GET  /data/kline?code=000001&period=1d&count=100",
+                "GET  /data/minute?code=000001&period=5m&count=240",
+                "GET  /data/tick?code=000001&count=100",
+                "GET  /data/sectors",
+                "GET  /data/sector/stocks?sector=沪深300",
+                "GET  /data/index_weight?index=000300",
+                "GET  /data/financial?codes=000001",
+                "GET  /data/calendar",
+            ],
+        },
         "docs": "/docs",
-        "dashboard": "/static/index.html",
     }
