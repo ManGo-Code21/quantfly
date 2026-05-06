@@ -9,6 +9,7 @@ import logging
 from typing import Optional
 
 from quantfly.screener.principle_filter import analyze_stock
+from quantfly.screener.risk_filter import RiskFilter
 
 logger = logging.getLogger("Screener")
 
@@ -53,18 +54,24 @@ class TopicDrivenScreener:
     """
     题材驱动选股器
 
+    完整流水线：
+      1. 产业 → 板块 → 成分股（industry_mapper）
+      2. 风险过滤（RiskFilter）— ST/亏损/流动性
+      3. 选股三原则（题材+筹码+分时）
+
     选股三原则：
     1. 题材：涨幅3%~9.8%（有赚钱效应但未涨停）
     2. 筹码：位置0.1~0.7，上方空间>15%，未大幅上涨
     3. 分时：量比≥1.5，在均价线上，主动买入强度≥0.7
     """
 
-    def __init__(self):
+    def __init__(self, enable_risk_filter: bool = True):
         self._industry_stocks_cache = {}
+        self.risk_filter = RiskFilter() if enable_risk_filter else None
 
     def screen(self, industry: str, top_n: int = 10) -> list[dict]:
         """
-        对产业相关板块执行选股扫描
+        对产业相关板块执行完整选股流水线
 
         Args:
             industry: 产业名
@@ -75,14 +82,25 @@ class TopicDrivenScreener:
         """
         from quantfly.hot_topics.industry_mapper import get_eastmoney_sector_stocks
 
-        stocks = get_eastmoney_sector_stocks(industry)
-        if not stocks:
+        # Step 1: 获取成分股
+        raw_stocks = get_eastmoney_sector_stocks(industry)
+        if not raw_stocks:
             logger.warning(f"[{industry}] 未找到成分股")
             return []
 
-        logger.info(f"[{industry}] 开始扫描 {len(stocks[:30])} 只成分股...")
+        # Step 2: 风险过滤（ST/亏损/流动性）
+        if self.risk_filter:
+            safe_stocks = self.risk_filter.filter(raw_stocks)
+            logger.info(f"[{industry}] 风险过滤: {len(safe_stocks)}/{len(raw_stocks)} 通过")
+        else:
+            safe_stocks = raw_stocks
+
+        if not safe_stocks:
+            return []
+
+        logger.info(f"[{industry}] 开始扫描 {len(safe_stocks[:30])} 只成分股...")
         results = []
-        for code, name in stocks[:30]:  # 取前30只扫描
+        for code, name in safe_stocks[:30]:  # 取前30只扫描
             df = get_kline_em(code, count=100)
             if df.empty or len(df) < 25:
                 continue

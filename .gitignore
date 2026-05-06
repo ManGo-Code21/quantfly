@@ -21,3 +21,11 @@ Thumbs.db
 
 # Project
 .cache/
+
+# 模型（已训练参数）
+model/*.pkl
+
+# 输出结果（每次运行都变）
+output/*.json
+output/*.csv
+output/*.png
