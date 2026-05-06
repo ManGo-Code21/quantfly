@@ -49,30 +49,73 @@ FEATURE_COLS = [
 def get_xtquant_daily(codes: list[str], count: int = 300) -> dict[str, pd.DataFrame]:
     """QMT日线数据（Windows用）"""
     try:
-        import xtquant.xtdatacenter as dc
+        from xtquant import xtdata
     except ImportError:
         logger.warning("xtquant 未安装")
         return {}
 
+    def _fmt(c: str) -> str:
+        c = c.strip()
+        if c.startswith(("6", "9")):
+            return f"{c}.SH"
+        if c.endswith((".SH", ".SZ")):
+            return c
+        return f"{c}.SZ"
+
     try:
-        dc.set_data_back_addr("127.0.0.1:5860")
+        # 连接 MiniQMT
+        xtdata.connect()
+
+        mqcodes = [_fmt(c) for c in codes]
+        fields = ["open", "high", "low", "close", "volume", "amount"]
+
+        # 批量下载历史数据（先下载才能获取）
+        from datetime import datetime
+        today = datetime.now().strftime("%Y%m%d")
+        # 估算起始日期：count根日K约需 count/250 + 1 年
+        start_year = datetime.now().year - (count // 250 + 1)
+        start = f"{start_year}0101"
+
+        logger.info(f"下载 {len(mqcodes)} 只股票历史数据 ({start}~{today})...")
+        for mqcode in mqcodes:
+            try:
+                xtdata.download_history_data(mqcode, "1d", start, today)
+            except Exception:
+                pass
+            time.sleep(0.02)  # 避免太快
+
+        # 批量获取 K 线
+        result_raw = xtdata.get_market_data(
+            stock_list=mqcodes,
+            period="1d",
+            count=count,
+            field_list=fields,
+        )
+
+        # 解析返回格式: {field: DataFrame(index=股票代码, columns=日期)}
         result = {}
-        for code in codes:
-            clean = code.split(".")[0]
-            data = dc.get_market_data(
-                stock_list=[clean], start_time=None, end_time=None,
-                count=count, period="1d",
-                fields=["open", "high", "low", "close", "volume", "amount"],
-                dividend_type="none",
-            )
-            if data is not None and not data.empty:
-                df = data[clean].droplevel(1, axis=1) if isinstance(data.columns, pd.MultiIndex) else data
-                result[code] = df.copy()
-            time.sleep(0.05)
+        for mqcode in mqcodes:
+            raw_code = mqcode.replace(".SH", "").replace(".SZ", "")
+            rows = {}
+            for field in fields:
+                df = result_raw.get(field, pd.DataFrame())
+                if not df.empty and mqcode in df.index:
+                    rows[field] = df.loc[mqcode]
+
+            if len(rows) >= 4:  # 至少 OHLC 四个字段
+                out = pd.DataFrame(rows)
+                out.index = pd.to_datetime(out.index.astype(str), format="%Y%m%d")
+                out = out.sort_index().tail(count)
+                if "amount" not in out.columns:
+                    out["amount"] = 0
+                result[raw_code] = out
+
         logger.info(f"QMT日线获取: {len(result)}/{len(codes)} 只")
         return result
     except Exception as e:
         logger.warning(f"QMT数据失败: {e}")
+        import traceback
+        traceback.print_exc()
         return {}
 
 
