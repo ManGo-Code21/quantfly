@@ -18,12 +18,13 @@ app.add_middleware(
 )
 
 # Routes
-from quantfly.api.routes import hot_topics, screener, backtest, kline, trading
+from quantfly.api.routes import hot_topics, screener, backtest, kline, trading, live
 app.include_router(hot_topics.router)
 app.include_router(screener.router)
 app.include_router(backtest.router)
 app.include_router(kline.router)
 app.include_router(trading.router)
+app.include_router(live.router)
 
 # Static files (frontend)
 static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ui", "static")
@@ -37,11 +38,14 @@ async def root():
         "name": "QuantFly",
         "version": "0.2.0",
         "endpoints": [
-            "/api/hot/topics",
-            "/api/hot/industries",
-            "/api/screener/screen/{industry}",
-            "/api/backtest/run/{industry}",
-            "/api/kline/{code}",
+            "/live/health",
+            "/live/rank?days=300",
+            "/live/factors",
+            "/hot/topics",
+            "/hot/industries",
+            "/screener/screen/{industry}",
+            "/backtest/run/{industry}",
+            "/kline/{code}",
         ],
         "docs": "/docs",
         "dashboard": "/static/index.html",
