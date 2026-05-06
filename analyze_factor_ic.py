@@ -217,10 +217,31 @@ MF_URL = "https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get"
 MF_HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://quote.eastmoney.com/"}
 
 def fetch_money_flow_batch(codes: list[str], days: int = 300) -> dict[str, pd.DataFrame]:
-    """批量获取资金流向，返回 {code: DataFrame(index=date, cols=[主力和超大单等])}"""
+    """批量获取资金流向（多数据源 fallback: 东方财富 → akshare）
+    返回 {code: DataFrame(index=date, cols=[main_net, small_net, medium_net, large_net, super_large_net])}"""
     result = {}
+    em_ok = 0
+    ak_ok = 0
+
+    def _parse_em(klines: list) -> list[dict]:
+        records = []
+        for k in klines:
+            p = k.split(",")
+            records.append({
+                "date": pd.to_datetime(p[0]),
+                "main_net": float(p[1]),
+                "small_net": float(p[2]),
+                "medium_net": float(p[3]),
+                "large_net": float(p[4]),
+                "super_large_net": float(p[5]),
+            })
+        return records
+
     for code in codes:
         clean = code.strip()
+        got = False
+
+        # 1. 东方财富
         secid = f"1.{clean}" if clean.startswith(("6", "9")) else f"0.{clean}"
         try:
             r = requests.get(MF_URL, params={
@@ -228,26 +249,42 @@ def fetch_money_flow_batch(codes: list[str], days: int = 300) -> dict[str, pd.Da
                 "fields1": "f1,f2,f3,f7",
                 "fields2": "f51,f52,f53,f54,f55,f56",
                 "lmt": days, "klt": "101",
-            }, headers=MF_HEADERS, timeout=10)
+            }, headers=MF_HEADERS, timeout=8)
             klines = r.json().get("data", {}).get("klines", [])
-            if not klines:
-                continue
-            records = []
-            for k in klines:
-                p = k.split(",")
-                records.append({
-                    "date": pd.to_datetime(p[0]),
-                    "main_net": float(p[1]),        # 主力净流入
-                    "small_net": float(p[2]),        # 小单
-                    "medium_net": float(p[3]),       # 中单
-                    "large_net": float(p[4]),        # 大单
-                    "super_large_net": float(p[5]),  # 超大单
-                })
-            result[code] = pd.DataFrame(records).set_index("date").sort_index()
+            if klines:
+                records = _parse_em(klines)
+                result[code] = pd.DataFrame(records).set_index("date").sort_index()
+                em_ok += 1
+                got = True
         except Exception:
             pass
-        time.sleep(0.1)
-    logger.info(f"资金流向获取: {len(result)}/{len(codes)} 只")
+
+        # 2. akshare fallback
+        if not got:
+            try:
+                import akshare as ak
+                mkt = "sh" if clean.startswith(("6", "9")) else "sz"
+                df = ak.stock_individual_fund_flow(stock=clean, market=mkt)
+                if df is not None and not df.empty:
+                    df = df.tail(days)
+                    records = []
+                    for _, row in df.iterrows():
+                        records.append({
+                            "date": pd.to_datetime(row["日期"]),
+                            "main_net": float(row.get("主力净流入-净额", 0)),
+                            "small_net": float(row.get("小单净流入-净额", 0)),
+                            "medium_net": float(row.get("中单净流入-净额", 0)),
+                            "large_net": float(row.get("大单净流入-净额", 0)),
+                            "super_large_net": float(row.get("超大单净流入-净额", 0)),
+                        })
+                    result[code] = pd.DataFrame(records).set_index("date").sort_index()
+                    ak_ok += 1
+            except Exception:
+                pass
+
+        time.sleep(0.05)  # 降频避免封IP
+
+    logger.info(f"资金流向获取: {len(result)}/{len(codes)} 只 (东方财富:{em_ok}, akshare:{ak_ok})")
     return result
 
 

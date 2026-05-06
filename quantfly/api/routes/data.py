@@ -390,7 +390,7 @@ async def get_calendar(
 
 
 # ══════════════════════════════════════════════════════════
-# 资金流向（东方财富）
+# 资金流向（多数据源 fallback）
 # ══════════════════════════════════════════════════════════
 
 EM_HEADERS = {
@@ -398,54 +398,125 @@ EM_HEADERS = {
     "Referer": "https://quote.eastmoney.com/",
 }
 
+EM_MF_URL = "https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get"
+# 完整字段: f51-f65 (15字段，位置固定)
+# p[0]=日期, p[1]=主力净额, p[2]=小单, p[3]=中单, p[4]=大单, p[5]=超大单,
+# p[6]=主力占比, p[7]=小单占比, p[8]=中单占比, p[9]=大单占比, p[10]=超大单占比,
+# p[11]=收盘价, p[12]=涨跌幅, p[13-14]=备用
+EM_FIELDS = "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63,f64,f65"
+
+
+def _fetch_money_flow_em(code: str, days: int) -> list[dict] | None:
+    """东方财富 HTTP API → 资金流向日线"""
+    import requests as req
+    secid = f"1.{code}" if code.startswith(("6", "9")) else f"0.{code}"
+    r = req.get(EM_MF_URL, params={
+        "secid": secid,
+        "fields1": "f1,f2,f3,f7",
+        "fields2": EM_FIELDS,
+        "lmt": days,
+        "klt": "101",
+    }, headers=EM_HEADERS, timeout=8)
+    klines = r.json().get("data", {}).get("klines", [])
+    if not klines:
+        return None
+    flows = []
+    for k in klines:
+        p = k.split(",")
+        flows.append({
+            "date": p[0],
+            "main_net": float(p[1]),           # 主力净流入 (元)
+            "small": float(p[2]),              # 小单净流入
+            "medium": float(p[3]),             # 中单净流入
+            "large": float(p[4]),              # 大单净流入
+            "super_large": float(p[5]),        # 超大单净流入
+            "main_net_ratio": float(p[6]),     # 主力净占比 (%)
+            "small_ratio": float(p[7]),        # 小单净占比
+            "medium_ratio": float(p[8]),       # 中单净占比
+            "large_ratio": float(p[9]),        # 大单净占比
+            "super_large_ratio": float(p[10]), # 超大单净占比
+            "close": float(p[11]),             # 收盘价
+            "pct_chg": float(p[12]),           # 涨跌幅(%)
+        })
+    return flows
+
+
+def _fetch_money_flow_ak(code: str, days: int) -> list[dict] | None:
+    """akshare fallback → 资金流向日线"""
+    try:
+        import akshare as ak
+        mkt = "sh" if code.startswith(("6", "9")) else "sz"
+        df = ak.stock_individual_fund_flow(stock=code, market=mkt)
+        if df is None or df.empty:
+            return None
+        df = df.tail(days)
+        flows = []
+        for _, row in df.iterrows():
+            flows.append({
+                "date": str(row["日期"]),
+                "main_net": float(row.get("主力净流入-净额", 0)),
+                "small": float(row.get("小单净流入-净额", 0)),
+                "medium": float(row.get("中单净流入-净额", 0)),
+                "large": float(row.get("大单净流入-净额", 0)),
+                "super_large": float(row.get("超大单净流入-净额", 0)),
+                "close": float(row.get("收盘价", 0)) or None,
+                "pct_chg": float(row.get("涨跌幅", 0)) or None,
+                "main_net_ratio": float(row.get("主力净流入-净占比", 0)),
+                "large_net_ratio": float(row.get("大单净流入-净占比", 0)),
+                "medium_net_ratio": float(row.get("中单净流入-净占比", 0)),
+                "small_net_ratio": float(row.get("小单净流入-净占比", 0)),
+            })
+        return flows
+    except Exception:
+        return None
+
+
+def _get_money_flow_one(code: str, days: int) -> tuple[list[dict] | None, str]:
+    """单只股票资金流向: 东方财富 → akshare，返回 (data, source)"""
+    # 1. 东方财富（主力）
+    data = _fetch_money_flow_em(code, days)
+    if data:
+        return data, "eastmoney"
+    # 2. akshare（备选）
+    data = _fetch_money_flow_ak(code, days)
+    if data:
+        return data, "akshare"
+    return None, "none"
+
+
 @router.get("/data/money_flow")
 async def get_money_flow(
     codes: str = Query(..., description="逗号分隔，如 000001,600000"),
     days: int = Query(5, ge=1, le=250),
 ):
     """
-    资金流向 — 主力净流入、超大单/大单/中单/小单净流入
+    资金流向 — 主力/超大单/大单/中单/小单净流入（多数据源 fallback）
     
-    数据源: 东方财富 (QMT免费版无此字段)
-    字段: date, main_net(主力净流入), super_large(超大单),
-          large(大单), medium(中单), small(小单)
+    数据源优先级: 东方财富 → akshare
+    字段: date, main_net, small, medium, large, super_large,
+          close, pct_chg, main_net_ratio, super_large_ratio, amount
     单位: 元
     """
-    import requests as req
-
     code_list = [c.strip() for c in codes.split(",") if c.strip()]
     if len(code_list) > 50:
         raise HTTPException(400, "最多50只")
 
-    url = "https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get"
     result = {}
+    sources = {}
 
     for code in code_list:
-        secid = f"1.{code}" if code.startswith(("6", "9")) else f"0.{code}"
         try:
-            r = req.get(url, params={
-                "secid": secid,
-                "fields1": "f1,f2,f3,f7",
-                "fields2": "f51,f52,f53,f54,f55,f56",
-                "lmt": days,
-                "klt": "101",
-            }, headers=EM_HEADERS, timeout=10)
-
-            klines = r.json().get("data", {}).get("klines", [])
-            flows = []
-            for k in klines:
-                p = k.split(",")
-                flows.append({
-                    "date": p[0],
-                    "main_net": _safe_float(p[1]),      # 主力净流入
-                    "small": _safe_float(p[2]),          # 小单净流入
-                    "medium": _safe_float(p[3]),         # 中单净流入
-                    "large": _safe_float(p[4]),          # 大单净流入
-                    "super_large": _safe_float(p[5]),    # 超大单净流入
-                })
-            if flows:
-                result[code] = flows
+            data, src = _get_money_flow_one(code, days)
+            if data:
+                result[code] = data
+                sources[code] = src
         except Exception as e:
             logger.warning(f"Money flow failed for {code}: {e}")
+            sources[code] = f"error:{e}"
 
-    return {"money_flow": result, "count": len(result), "days": days}
+    return {
+        "money_flow": result,
+        "count": len(result),
+        "days": days,
+        "source": sources,
+    }
