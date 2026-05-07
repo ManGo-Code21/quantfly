@@ -9,5 +9,5 @@ if __name__ == "__main__":
         "quantfly.api.main:app",
         host="0.0.0.0",
         port=8765,
-        reload=True,
+        reload=False,  # Windows上reload会卡死
     )
