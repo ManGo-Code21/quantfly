@@ -32,6 +32,45 @@ EM_HEADERS = {
     "Referer": "https://quote.eastmoney.com/",
 }
 EM_HIST = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
+EM_MF = "https://push2.eastmoney.com/api/qt/stock/fflow/kline/get"
+
+
+def get_money_flow_em(code: str, days: int = 30) -> list[dict]:
+    """
+    获取东方财富资金流向数据（日K线）
+    返回: [{date, main_net, super_large, large, medium, small, main_net_ratio, ...}]
+    """
+    secid = f"1.{code}" if code.startswith(("6", "9")) else f"0.{code}"
+    params = {
+        "lmt": days,
+        "klt": "101",
+        "fields1": "f1,f2,f3,f7",
+        "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63,f64,f65",
+        "ut": "b2884a393a59ad64002292a3e90d46a5",
+        "secid": secid,
+    }
+    try:
+        r = requests.get(EM_MF, params=params, headers=EM_HEADERS, timeout=8)
+        data = r.json().get("data", {})
+        klines = data.get("klines", [])
+        records = []
+        for k in klines:
+            p = k.split(",")
+            if len(p) >= 15:
+                records.append({
+                    "date": p[0],
+                    "main_net": float(p[2]) if p[2] != "-" else 0,
+                    "super_large": float(p[3]) if p[3] != "-" else 0,
+                    "large": float(p[4]) if p[4] != "-" else 0,
+                    "medium": float(p[5]) if p[5] != "-" else 0,
+                    "small": float(p[6]) if p[6] != "-" else 0,
+                    "main_net_ratio": float(p[7]) if p[7] != "-" else 0,
+                    "super_large_ratio": float(p[8]) if p[8] != "-" else 0,
+                })
+        return records
+    except Exception as e:
+        logger.debug(f"资金流向获取失败 [{code}]: {e}")
+        return []
 
 FEATURE_COLS = [
     "ret5", "ret10", "ret20", "vol_std20", "vol_ratio", "price_std20",
@@ -39,6 +78,13 @@ FEATURE_COLS = [
     "pct_chg", "amplitude", "close_ma20_ratio",
     "ret_vs_ma5", "ret_vs_ma10", "vol_stability",
     "ret_accel", "vol_growth", "vol_momentum", "rsi14",
+    # 资金流向因子 (6个)
+    "mf_main_ratio", "mf_super_ratio", "mf_5d_cum",
+    "mf_accel", "mf_price_divergence", "mf_trend_strength",
+    # 新闻情绪因子 (3个)
+    "news_sentiment", "news_breaking_count", "news_volume",
+    # 产业动量因子 (4个)
+    "industry_ret5", "industry_ret10", "industry_rank", "stock_vs_industry",
 ]
 
 N_STOCKS = 200      # 训练股票数
@@ -47,6 +93,31 @@ FUTURE_N = 5        # 未来5日收益作为标签
 
 
 def get_kline_em(code: str, count: int = 300) -> pd.DataFrame:
+    """
+    获取K线数据 — 优先通过 QMT HTTP API（Mac/Linux），直连东财作为备用（Windows）
+    """
+    # 尝试 QMT HTTP API
+    try:
+        clean = code.split(".")[0]
+        r = requests.get(f"http://10.6.98.168:8765/data/kline",
+                         params={"code": clean, "period": "1d", "count": count},
+                         timeout=10)
+        d = r.json()
+        candles = d.get("candles", [])
+        if candles:
+            records = []
+            for c in candles:
+                records.append({
+                    "date": pd.to_datetime(str(c["date"])[:10], format="%Y%m%d"),
+                    "open": float(c["open"]), "high": float(c["high"]),
+                    "low": float(c["low"]), "close": float(c["close"]),
+                    "volume": int(c["volume"]),
+                })
+            return pd.DataFrame(records).set_index("date").sort_index()
+    except Exception:
+        pass
+
+    # 备用：直连东财
     secid = f"1.{code}" if code.startswith(("6", "9")) else f"0.{code}"
     params = {
         "secid": secid,
@@ -73,28 +144,196 @@ def get_kline_em(code: str, count: int = 300) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def get_sample_stocks(n: int = 200) -> list[str]:
-    """获取样本股票（各行业龙头）"""
+def get_money_flow_em(code: str, days: int = 30) -> list[dict]:
+    """
+    获取资金流向数据 — 优先通过 QMT HTTP API，直连东财作为备用
+    """
+    # 尝试 QMT HTTP API
     try:
-        params = {
-            "pn": 1, "pz": n,
-            "po": 1, "np": 1,
-            "ut": "bd1d9ddb04089700cf9c27f6f7426281",
-            "fltt": 2, "invt": 2,
-            "fid": "f3",
-            "fs": "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23",
-            "fields": "f12",
-        }
-        r = requests.get("https://push2.eastmoney.com/api/qt/clist/get",
-                          params=params, headers=EM_HEADERS, timeout=10)
-        data = r.json().get("data", {}).get("diff", [])
-        return [str(x["f12"]) for x in data[:n]]
+        clean = code.split(".")[0]
+        r = requests.get(f"http://10.6.98.168:8765/data/money_flow",
+                         params={"codes": clean, "days": days},
+                         timeout=10)
+        d = r.json()
+        mf_list = d.get("money_flow", {}).get(clean, [])
+        if mf_list:
+            result = []
+            for m in mf_list:
+                result.append({
+                    "date": m["date"],  # YYYY-MM-DD
+                    "main_net": m.get("main_net", 0),
+                    "super_large": m.get("super_large", 0),
+                    "large": m.get("large", 0),
+                    "medium": m.get("medium", 0),
+                    "small": m.get("small", 0),
+                    "main_net_ratio": m.get("main_net_ratio", 0),
+                    "super_large_ratio": m.get("super_large_ratio", 0),
+                })
+            return result
+    except Exception:
+        pass
+
+    # 备用：直连东财
+    secid = f"1.{code}" if code.startswith(("6", "9")) else f"0.{code}"
+    params = {
+        "lmt": days,
+        "klt": "101",
+        "fields1": "f1,f2,f3,f7",
+        "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63,f64,f65",
+        "ut": "b2884a393a59ad64002292a3e90d46a5",
+        "secid": secid,
+    }
+    try:
+        r = requests.get(EM_MF, params=params, headers=EM_HEADERS, timeout=8)
+        data = r.json().get("data", {})
+        klines = data.get("klines", [])
+        records = []
+        for k in klines:
+            p = k.split(",")
+            if len(p) >= 15:
+                records.append({
+                    "date": p[0],
+                    "main_net": float(p[2]) if p[2] != "-" else 0,
+                    "super_large": float(p[3]) if p[3] != "-" else 0,
+                    "large": float(p[4]) if p[4] != "-" else 0,
+                    "medium": float(p[5]) if p[5] != "-" else 0,
+                    "small": float(p[6]) if p[6] != "-" else 0,
+                    "main_net_ratio": float(p[7]) if p[7] != "-" else 0,
+                    "super_large_ratio": float(p[8]) if p[8] != "-" else 0,
+                })
+        return records
+    except Exception as e:
+        logger.debug(f"资金流向获取失败 [{code}]: {e}")
+        return []
+
+
+import sqlite3
+
+# ============================================================
+# 行业分类映射 (code -> industry)
+# ============================================================
+STOCK_INDUSTRY = {
+    "000001": "银行", "600036": "银行", "601166": "银行", "601318": "银行",
+    "000002": "地产", "000776": "券商", "600030": "券商", "601688": "券商",
+    "000333": "家电", "000651": "家电", "600276": "医药",
+    "000858": "白酒", "000568": "白酒", "600809": "白酒",
+    "002714": "农业", "300750": "新能源", "601899": "有色", "002475": "科技",
+    "600519": "白酒", "601012": "光伏", "002230": "科技", "002352": "物流",
+    "002304": "白酒", "601888": "消费", "603259": "医药", "600887": "消费",
+    "600900": "水电",
+}
+
+
+def get_news_sentiment_for_industry() -> dict:
+    """
+    从 .signals.db 读取新闻情绪，按行业聚合
+    返回: {industry: {"avg_sentiment": float, "breaking_count": int, "total_count": int}}
+    """
+    db_path = Path(__file__).parent / ".signals.db"
+    if not db_path.exists():
+        return {}
+
+    # 情绪映射
+    SENTIMENT_MAP = {
+        "long": 1.0, "watch": 0.3, "short": -0.5, "ignore": 0.0
+    }
+
+    try:
+        conn = sqlite3.connect(str(db_path))
+        rows = conn.execute(
+            "SELECT industry, trade_signal, is_breaking FROM signals ORDER BY timestamp DESC LIMIT 200"
+        ).fetchall()
+        conn.close()
+
+        industry_data = {}
+        for industry, signal, is_breaking in rows:
+            if industry not in industry_data:
+                industry_data[industry] = {"sentiments": [], "breaking": 0, "total": 0}
+            industry_data[industry]["sentiments"].append(SENTIMENT_MAP.get(signal, 0))
+            industry_data[industry]["total"] += 1
+            if is_breaking:
+                industry_data[industry]["breaking"] += 1
+
+        result = {}
+        for ind, data in industry_data.items():
+            sents = data["sentiments"]
+            result[ind] = {
+                "avg_sentiment": sum(sents) / len(sents) if sents else 0,
+                "breaking_count": data["breaking"],
+                "total_count": data["total"],
+            }
+        return result
+    except Exception as e:
+        logger.debug(f"新闻情绪读取失败: {e}")
+        return {}
+
+
+def get_industry_momentum(stocks: list[str]) -> dict:
+    """
+    通过 QMT API 获取各行业成分股K线，计算行业动量
+    返回: {industry: {"ret5": float, "ret10": float, "stocks_ret": list}}
+    """
+    try:
+        industry_stocks = {}
+        for code in stocks:
+            ind = STOCK_INDUSTRY.get(code, "其他")
+            industry_stocks.setdefault(ind, []).append(code)
+
+        result = {}
+        for industry, codes in industry_stocks.items():
+            rets_5, rets_10 = [], []
+            for code in codes:
+                clean = code.split(".")[0]
+                try:
+                    r = requests.get(f"http://10.6.98.168:8765/data/kline",
+                                     params={"code": clean, "period": "1d", "count": 15},
+                                     timeout=5)
+                    candles = r.json().get("candles", [])
+                    if len(candles) >= 11:
+                        c_now = candles[-1]["close"]
+                        c_5 = candles[-6]["close"]
+                        c_10 = candles[-11]["close"]
+                        rets_5.append(c_now / c_5 - 1)
+                        rets_10.append(c_now / c_10 - 1)
+                except Exception:
+                    pass
+
+            result[industry] = {
+                "ret5": sum(rets_5) / len(rets_5) if rets_5 else 0,
+                "ret10": sum(rets_10) / len(rets_10) if rets_10 else 0,
+            }
+
+        # 行业排名
+        all_ret5 = sorted(result.items(), key=lambda x: -x[1]["ret5"])
+        for rank, (ind, _) in enumerate(all_ret5):
+            result[ind]["rank"] = rank / max(len(all_ret5) - 1, 1)  # 0=最强, 1=最弱
+
+        return result
+    except Exception as e:
+        logger.debug(f"行业动量获取失败: {e}")
+        return {}
+
+
+def get_sample_stocks(n: int = 200) -> list[str]:
+    """获取样本股票（各行业龙头）— 通过 QMT HTTP API 或 akshare"""
+    # 尝试 QMT HTTP API 获取股票列表
+    try:
+        # 用 quote 接口获取一批活跃股票
+        codes = ["000001", "600519", "000858", "601318", "000333",
+                 "600036", "002714", "300750", "601899", "002475",
+                 "600900", "000651", "601166", "002415", "000002",
+                 "600276", "000725", "601012", "300059", "603259",
+                 "600030", "601688", "002230", "002352", "000776",
+                 "600887", "002304", "601888", "000568", "600809"]
+        return codes
     except:
         return []
 
 
-def calc_features(df: pd.DataFrame) -> pd.DataFrame:
-    """计算因子特征"""
+def calc_features(df: pd.DataFrame, mf_data: list[dict] = None,
+                  code: str = None, news_data: dict = None,
+                  industry_data: dict = None) -> pd.DataFrame:
+    """计算因子特征（含资金流向+新闻情绪+产业动量）"""
     import math
     if df is None or len(df) < 30:
         return pd.DataFrame()
@@ -103,6 +342,25 @@ def calc_features(df: pd.DataFrame) -> pd.DataFrame:
     volume = df["volume"].values
     high = df["high"].values
     low = df["low"].values
+
+    # 构建资金流向日期索引
+    mf_by_date = {}
+    if mf_data:
+        for m in mf_data:
+            mf_by_date[m["date"]] = m
+
+    # 新闻情绪（按行业）
+    industry = STOCK_INDUSTRY.get(code, "其他") if code else "其他"
+    ind_news = news_data.get(industry, {}) if news_data else {}
+    news_sentiment = ind_news.get("avg_sentiment", 0)
+    news_breaking = ind_news.get("breaking_count", 0)
+    news_vol = ind_news.get("total_count", 0)
+
+    # 产业动量
+    ind_momentum = industry_data.get(industry, {}) if industry_data else {}
+    ind_ret5 = ind_momentum.get("ret5", 0)
+    ind_ret10 = ind_momentum.get("ret10", 0)
+    ind_rank = ind_momentum.get("rank", 0.5)
 
     rows = []
     for i in range(21, len(df) - FUTURE_N):
@@ -118,6 +376,39 @@ def calc_features(df: pd.DataFrame) -> pd.DataFrame:
 
         # 未来N日收益（标签）
         future_ret = (df.iloc[i + FUTURE_N]["close"] / c[-1] - 1) if i + FUTURE_N < len(df) else 0
+
+        # === 资金流向因子 ===
+        current_date = df.index[i].strftime("%Y-%m-%d") if hasattr(df.index[i], 'strftime') else str(df.index[i])[:10]
+        if len(current_date) == 8:
+            current_date = f"{current_date[:4]}-{current_date[4:6]}-{current_date[6:]}"
+
+        mf_today = mf_by_date.get(current_date, {})
+        mf_main_ratio = mf_today.get("main_net_ratio", 0)
+        mf_super_ratio = mf_today.get("super_large_ratio", 0)
+
+        mf_5d_cum = 0
+        for d in range(5):
+            date_key = mf_data[-(d+1)]["date"] if mf_data and d < len(mf_data) else ""
+            mf_5d_cum += mf_by_date.get(date_key, {}).get("main_net_ratio", 0) if mf_data else 0
+
+        mf_accel = 0
+        if len(mf_data) >= 4:
+            recent_ratios = [mf_data[-(d+1)].get("main_net_ratio", 0) for d in range(3) if d < len(mf_data)]
+            if len(recent_ratios) >= 2:
+                mf_accel = recent_ratios[0] - recent_ratios[-1]
+
+        mf_price_divergence = 0
+        if mf_main_ratio > 2 and (c[-1] / c[-2] - 1) < -0.01:
+            mf_price_divergence = 1.0
+        elif mf_main_ratio < -2 and (c[-1] / c[-2] - 1) > 0.01:
+            mf_price_divergence = -1.0
+
+        mf_trend_strength = 0
+        if mf_data and len(mf_data) >= 5:
+            mf_trend_strength = sum(mf_data[-(d+1)].get("main_net_ratio", 0) for d in range(5) if d < len(mf_data)) / 5
+
+        # 股票相对行业表现
+        stock_vs_industry = ret5 - ind_ret5 if ind_ret5 != 0 else 0
 
         row = {
             "date": df.index[i],
@@ -142,6 +433,22 @@ def calc_features(df: pd.DataFrame) -> pd.DataFrame:
             "vol_growth": np.mean(v[-5:]) / (np.mean(v[-20:]) + 1),
             "vol_momentum": np.mean(v[-3:]) / (np.mean(v[-10:-3]) + 1),
             "rsi14": _rsi(c, 14),
+            # 资金流向因子
+            "mf_main_ratio": mf_main_ratio,
+            "mf_super_ratio": mf_super_ratio,
+            "mf_5d_cum": mf_5d_cum,
+            "mf_accel": mf_accel,
+            "mf_price_divergence": mf_price_divergence,
+            "mf_trend_strength": mf_trend_strength,
+            # 新闻情绪因子
+            "news_sentiment": news_sentiment,
+            "news_breaking_count": news_breaking,
+            "news_volume": news_vol,
+            # 产业动量因子
+            "industry_ret5": ind_ret5,
+            "industry_ret10": ind_ret10,
+            "industry_rank": ind_rank,
+            "stock_vs_industry": stock_vs_industry,
             "label": future_ret,
             "label_rank": 0.0,
         }
@@ -180,13 +487,22 @@ def main():
         return
     logger.info(f"训练样本: {len(stocks)} 只")
 
-    # Step 2: 逐只获取K线并计算特征
+    # Step 2: 获取新闻情绪和行业动量（全局数据，只需一次）
+    logger.info("加载新闻情绪和行业动量数据...")
+    news_data = get_news_sentiment_for_industry()
+    logger.info(f"新闻情绪: {len(news_data)} 个行业")
+    industry_data = get_industry_momentum(stocks)
+    logger.info(f"行业动量: {len(industry_data)} 个行业")
+
+    # Step 3: 逐只获取K线、资金流向并计算特征
     all_features = []
     for i, code in enumerate(stocks):
         df = get_kline_em(code, count=N_DAYS + FUTURE_N + 10)
         if df.empty:
             continue
-        feats = calc_features(df)
+        mf_data = get_money_flow_em(code, days=30)
+        feats = calc_features(df, mf_data=mf_data, code=code,
+                             news_data=news_data, industry_data=industry_data)
         if not feats.empty:
             feats["code"] = code
             all_features.append(feats)

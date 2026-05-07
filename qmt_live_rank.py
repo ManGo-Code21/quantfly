@@ -98,6 +98,65 @@ def get_xtquant_minute_data(codes: list[str], count: int = 240) -> dict[str, pd.
         logger.warning(f"QMT数据获取失败: {e}")
         return {}
 
+def get_qmt_http_minute_data(codes: list[str], count: int = 240) -> dict[str, pd.DataFrame]:
+    """
+    通过 Windows QMT HTTP API 获取分钟K线（Mac/Linux 调用远程 QMT 服务）
+    codes: ["000001", "600256", ...]（不带后缀）
+    返回: {code: DataFrame(index=datetime, columns=[open,high,low,close,volume,amount])}
+    """
+    import concurrent.futures
+    from typing import Optional, Tuple
+
+    from quantfly.trading.qmt_client import QMTClient
+
+    result = {}
+    failed = []
+
+    def _fetch_one(code: str) -> Tuple[str, Optional[pd.DataFrame]]:
+        """并发拉取单只股票分钟数据，10秒超时"""
+        client = QMTClient()
+        clean = code.split(".")[0]
+        try:
+            resp = client.get_minute(clean, period="5m", count=count)
+            candles = resp.get("candles", [])
+            if not candles:
+                return (code, None)
+            df = pd.DataFrame(candles)
+            df.columns = ["date", "open", "high", "low", "close", "volume", "amount"]
+            df["date"] = pd.to_datetime(df["date"], format="%Y%m%d%H%M%S")
+            df = df.set_index("date").astype(float)
+            return (code, df)
+        except Exception as e:
+            logger.warning(f"QMT HTTP {code} 失败: {e}")
+            return (code, None)
+
+    # 并发拉取，max_workers=20，每只股票10秒超时
+    start = time.time()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as pool:
+        futures = {pool.submit(_fetch_one, c): c for c in codes}
+        try:
+            for future in concurrent.futures.as_completed(futures, timeout=120):
+                try:
+                    code, df = future.result(timeout=10)
+                    if df is not None:
+                        result[code] = df
+                    else:
+                        failed.append(code)
+                except concurrent.futures.TimeoutError:
+                    failed.append(futures[future])
+                    logger.warning(f"QMT HTTP {futures[future]} 超时(10s)")
+                except Exception:
+                    failed.append(futures[future])
+        except concurrent.futures.TimeoutError:
+            for f in futures:
+                f.cancel()
+
+    elapsed = time.time() - start
+    logger.info(f"QMT HTTP并发获取: {len(result)}/{len(codes)} 只, 耗时{elapsed:.1f}s, 失败{len(failed)}只")
+    if failed:
+        logger.warning(f"QMT HTTP 失败列表: {failed}")
+    return result
+
 
 def get_akshare_minute_data(codes: list[str], count: int = 240) -> dict[str, pd.DataFrame]:
     """
@@ -347,8 +406,88 @@ def rank_stocks(factor_df: pd.DataFrame, model) -> pd.DataFrame:
 
 
 # ============================================================
-# 选股范围（中证全指成分 + 热门行业）
+# 选股范围（热点板块 + 中证全指）
 # ============================================================
+
+def get_hot_sector_stocks(timeout: int = 5) -> tuple[list[dict], list[str]]:
+    """
+    获取涨幅前5热点板块及其成分股
+    返回: (板块信息列表, 成分股代码列表)
+    失败时返回空列表，回退到全市场
+    """
+    try:
+        import akshare as ak
+        import signal
+
+        # 设置5秒超时
+        def timeout_handler(signum, frame):
+            raise TimeoutError("板块数据获取超时")
+
+        # Linux/Mac signal alarm
+        if hasattr(signal, 'SIGALRM'):
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(timeout)
+
+        try:
+            # Step 1: 获取概念板块列表（按涨幅排序）
+            df_board = ak.stock_board_concept_name_em()
+            if df_board is None or df_board.empty:
+                logger.warning("板块列表为空，回退到全市场")
+                return [], []
+
+            # 取涨幅前5板块
+            top5 = df_board.head(5)
+            logger.info(f"获取到板块列表，共 {len(df_board)} 个概念板块")
+
+            # 打印板块信息
+            sector_info = []
+            all_codes = set()
+
+            for _, row in top5.iterrows():
+                board_name = row.get("板块名称", row.get("name", ""))
+                board_code = row.get("板块代码", row.get("code", ""))
+                change_pct = row.get("涨跌幅", row.get("涨跌幅", 0))
+
+                sector_info.append({
+                    "name": board_name,
+                    "code": board_code,
+                    "pct": change_pct
+                })
+                logger.info(f"  热点板块: {board_name}({board_code}) 涨跌幅: {change_pct:.2f}%")
+
+                # Step 2: 获取成分股
+                try:
+                    df_cons = ak.stock_board_concept_cons_em(symbol=board_name)
+                    if df_cons is not None and not df_cons.empty:
+                        # 提取股票代码
+                        if "代码" in df_cons.columns:
+                            codes = df_cons["代码"].tolist()
+                        elif "code" in df_cons.columns:
+                            codes = df_cons["code"].tolist()
+                        else:
+                            codes = df_cons.iloc[:, 0].tolist()
+                        # 清理代码（保留6位数字）
+                        codes = [str(c)[:6] for c in codes if str(c).isdigit() and len(str(c)) >= 6]
+                        all_codes.update(codes)
+                        logger.info(f"    成分股: {len(codes)} 只")
+                except Exception as e:
+                    logger.warning(f"    获取 {board_name} 成分股失败: {e}")
+
+            # 取消超时
+            if hasattr(signal, 'SIGALRM'):
+                signal.alarm(0)
+
+            logger.info(f"热点板块候选股票: {len(all_codes)} 只（去重后）")
+            return sector_info, list(all_codes)
+
+        finally:
+            if hasattr(signal, 'SIGALRM'):
+                signal.alarm(0)
+
+    except (TimeoutError, Exception) as e:
+        logger.warning(f"热点板块获取失败: {e}，回退到全市场候选")
+        return [], []
+
 
 def get_universe() -> list[str]:
     """
@@ -438,10 +577,37 @@ def build_factor_df(codes: list[str], minute_data: dict[str, pd.DataFrame],
     return df
 
 
-def format_top_stocks(df: pd.DataFrame, top_n: int = 30) -> str:
+def _is_st(name: str) -> bool:
+    """判断是否为ST/退市股票"""
+    if not name:
+        return False
+    n = name.strip()
+    return n.startswith("*ST") or n.startswith("ST") or "退" in n or "暂停" in n
+
+def format_top_stocks(df: pd.DataFrame, top_n: int = 30,
+                      hot_sectors: list[dict] = None) -> str:
     """格式化Top股票输出"""
+    if hot_sectors is None:
+        hot_sectors = []
+
+    # 构建热点板块信息头
+    header = []
+    if hot_sectors:
+        sector_str = " | ".join([f"{s['name']}({s['pct']:+.1f}%)" for s in hot_sectors])
+        header.append(f"🔥热点板块: {sector_str}")
+
     if df.empty:
-        return "今日无信号（市场无异动）"
+        msg = "今日无信号（市场无异动）"
+        if header:
+            msg = "\n".join(header) + "\n" + msg
+        return msg
+
+    # 过滤ST/退市/暂停
+    before = len(df)
+    df = df[~df["name"].apply(_is_st)]
+    after = len(df)
+    if after == 0:
+        return "今日无信号（ST过滤后无候选）"
 
     top = df.head(top_n)
     lines = [f"📊 QuantFly Top{int(top_n)}信号 {datetime.now().strftime('%m-%d %H:%M')}\n"]
@@ -472,6 +638,14 @@ def format_top_stocks(df: pd.DataFrame, top_n: int = 30) -> str:
         )
 
     lines.append(f"\n⏰ {datetime.now().strftime('%H:%M:%S')}")
+
+    # 在消息末尾添加热点板块信息
+    if hot_sectors:
+        lines.append("\n" + "=" * 20)
+        lines.append("🔥 今日热点板块 Top5:")
+        for s in hot_sectors:
+            lines.append(f"  • {s['name']}({s['code']}) {s['pct']:+.2f}%")
+
     return "\n".join(lines)
 
 
@@ -486,23 +660,31 @@ def run(source: str = "qmt", top_n: int = 30, push: bool = True):
     """
     logger.info(f"=== QuantFly 选股启动 (source={source}) ===")
 
-    # Step 1: 获取候选股票池
-    codes = get_universe()
+    # Step 1: 获取热点板块成分股作为候选股票池
+    hot_sectors, hot_codes = get_hot_sector_stocks(timeout=5)
+
+    if hot_codes:
+        codes = hot_codes
+        logger.info(f"使用热点板块候选股票: {len(codes)} 只")
+    else:
+        # 回退到全市场
+        codes = get_universe()
+        logger.info(f"回退到全市场候选股票: {len(codes)} 只")
+
     if not codes:
         logger.error("候选股票池为空，退出")
         return
-    logger.info(f"候选股票: {len(codes)} 只")
 
     # Step 2: 获取分钟K线数据（双数据源）
     minute_data = {}
     source_used = "none"
 
     if source in ("qmt", "auto"):
-        minute_data = get_xtquant_minute_data(codes, count=240)
+        minute_data = get_qmt_http_minute_data(codes, count=240)
         if minute_data:
-            source_used = "QMT"
+            source_used = "QMT_HTTP"
         elif source == "qmt":
-            logger.error("QMT数据获取失败，退出")
+            logger.error("QMT HTTP数据获取失败，退出")
             return
 
     if not minute_data and source in ("akshare", "auto"):
@@ -536,7 +718,7 @@ def run(source: str = "qmt", top_n: int = 30, push: bool = True):
         return
 
     # Step 6: 输出结果
-    result_text = format_top_stocks(ranked, top_n=top_n)
+    result_text = format_top_stocks(ranked, top_n=top_n, hot_sectors=hot_sectors)
     print("\n" + result_text + "\n")
 
     # 保存结果
