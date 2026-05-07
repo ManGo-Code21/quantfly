@@ -272,9 +272,10 @@ def get_sina_realtime(codes: list[str]) -> pd.DataFrame:
 # 因子计算层（20因子）
 # ============================================================
 
-def calc_factors(df: pd.DataFrame) -> dict:
+def calc_factors(df: pd.DataFrame, code: str = None, mf_data: list = None,
+                 news_data: dict = None, industry_data: dict = None) -> dict:
     """
-    计算20个因子
+    计算33个因子 (20技术 + 6资金流 + 3新闻 + 4产业)
     df要求: columns=[date,open,high,low,close,volume,amount]
     """
     if df is None or len(df) < 20:
@@ -290,7 +291,51 @@ def calc_factors(df: pd.DataFrame) -> dict:
     ret10 = (close[-1] / close[-11] - 1) if len(close) > 10 else 0
     ret20 = (close[-1] / close[-21] - 1) if len(close) > 20 else 0
 
-    # 1-10 量价波动
+    # === 资金流向因子 ===
+    mf_main_ratio = 0
+    mf_super_ratio = 0
+    mf_5d_cum = 0
+    mf_accel = 0
+    mf_price_divergence = 0
+    mf_trend_strength = 0
+
+    if mf_data and len(mf_data) > 0:
+        mf_today = mf_data[-1]
+        mf_main_ratio = mf_today.get("main_net_ratio", 0)
+        mf_super_ratio = mf_today.get("super_large_ratio", 0)
+
+        # 5日累计
+        mf_5d_cum = sum(mf_data[-(d+1)].get("main_net_ratio", 0) for d in range(min(5, len(mf_data))))
+
+        # 加速度
+        if len(mf_data) >= 3:
+            mf_accel = mf_data[-1].get("main_net_ratio", 0) - mf_data[-3].get("main_net_ratio", 0)
+
+        # 量价背离
+        if mf_main_ratio > 2 and (close[-1] / close[-2] - 1) < -0.01:
+            mf_price_divergence = 1.0
+        elif mf_main_ratio < -2 and (close[-1] / close[-2] - 1) > 0.01:
+            mf_price_divergence = -1.0
+
+        # 趋势强度
+        if len(mf_data) >= 5:
+            mf_trend_strength = sum(mf_data[-(d+1)].get("main_net_ratio", 0) for d in range(5)) / 5
+
+    # === 新闻情绪因子 ===
+    from train_ranker import STOCK_INDUSTRY
+    industry = STOCK_INDUSTRY.get(code, "其他") if code else "其他"
+    ind_news = news_data.get(industry, {}) if news_data else {}
+    news_sentiment = ind_news.get("avg_sentiment", 0)
+    news_breaking = ind_news.get("breaking_count", 0)
+    news_vol = ind_news.get("total_count", 0)
+
+    # === 产业动量因子 ===
+    ind_momentum = industry_data.get(industry, {}) if industry_data else {}
+    ind_ret5 = ind_momentum.get("ret5", 0)
+    ind_ret10 = ind_momentum.get("ret10", 0)
+    ind_rank = ind_momentum.get("rank", 0.5)
+    stock_vs_industry = ret5 - ind_ret5 if ind_ret5 != 0 else 0
+
     factors = {
         # 量价波动 (10)
         "ret5": ret5,
@@ -325,6 +370,25 @@ def calc_factors(df: pd.DataFrame) -> dict:
 
         # 技术 (1)
         "rsi14": _calc_rsi(close, 14),
+
+        # 资金流向 (6)
+        "mf_main_ratio": mf_main_ratio,
+        "mf_super_ratio": mf_super_ratio,
+        "mf_5d_cum": mf_5d_cum,
+        "mf_accel": mf_accel,
+        "mf_price_divergence": mf_price_divergence,
+        "mf_trend_strength": mf_trend_strength,
+
+        # 新闻情绪 (3)
+        "news_sentiment": news_sentiment,
+        "news_breaking_count": news_breaking,
+        "news_volume": news_vol,
+
+        # 产业动量 (4)
+        "industry_ret5": ind_ret5,
+        "industry_ret10": ind_ret10,
+        "industry_rank": ind_rank,
+        "stock_vs_industry": stock_vs_industry,
     }
 
     # 清理NaN
@@ -553,12 +617,15 @@ def push_to_feishu(text: str) -> bool:
 # ============================================================
 
 def build_factor_df(codes: list[str], minute_data: dict[str, pd.DataFrame],
-                    realtime: pd.DataFrame) -> pd.DataFrame:
-    """计算所有股票的20因子"""
+                    realtime: pd.DataFrame, news_data: dict = None,
+                    industry_data: dict = None, mf_cache: dict = None) -> pd.DataFrame:
+    """计算所有股票的33因子"""
     rows = []
     for code in codes:
         df = minute_data.get(code)
-        factors = calc_factors(df) if df is not None else {}
+        mf = mf_cache.get(code, []) if mf_cache else []
+        factors = calc_factors(df, code=code, mf_data=mf,
+                              news_data=news_data, industry_data=industry_data) if df is not None else {}
 
         # 补充实时行情字段
         r = realtime[realtime["code"] == code.split(".")[0]] if not realtime.empty else pd.DataFrame()
@@ -703,21 +770,29 @@ def run(source: str = "qmt", top_n: int = 30, push: bool = True):
     realtime = get_sina_realtime(list(minute_data.keys()))
     logger.info(f"实时行情: {len(realtime)} 只")
 
-    # Step 4: 计算20因子
-    factor_df = build_factor_df(list(minute_data.keys()), minute_data, realtime)
+    # Step 4: 加载新闻情绪和行业动量
+    logger.info("加载新闻情绪和行业动量...")
+    from train_ranker import get_news_sentiment_for_industry, get_industry_momentum
+    news_data = get_news_sentiment_for_industry()
+    industry_data = get_industry_momentum(list(minute_data.keys()))
+    logger.info(f"新闻情绪: {len(news_data)} 行业, 产业动量: {len(industry_data)} 行业")
+
+    # Step 5: 计算33因子
+    factor_df = build_factor_df(list(minute_data.keys()), minute_data, realtime,
+                               news_data=news_data, industry_data=industry_data)
     if factor_df.empty:
         logger.error("因子计算为空")
         return
     logger.info(f"因子计算完成: {len(factor_df)} 只")
 
-    # Step 5: Ranker排序
+    # Step 6: Ranker排序
     model = load_ranker()
     ranked = rank_stocks(factor_df, model)
     if ranked.empty:
         logger.error("排序结果为空")
         return
 
-    # Step 6: 输出结果
+    # Step 7: 输出结果
     result_text = format_top_stocks(ranked, top_n=top_n, hot_sectors=hot_sectors)
     print("\n" + result_text + "\n")
 
@@ -726,7 +801,7 @@ def run(source: str = "qmt", top_n: int = 30, push: bool = True):
     ranked.reset_index().to_csv(out_file, index=False)
     logger.info(f"结果已保存: {out_file}")
 
-    # Step 7: 飞书推送
+    # Step 8: 飞书推送
     if push:
         push_to_feishu(result_text)
 
