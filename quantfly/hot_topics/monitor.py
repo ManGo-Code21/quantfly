@@ -17,6 +17,8 @@ EM_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     "Referer": "https://www.eastmoney.com/",
 }
+_em_session = requests.Session()
+_em_session.trust_env = False
 
 
 class HotTopicMonitor:
@@ -58,7 +60,7 @@ class HotTopicMonitor:
                 "fs": "m:90+t:3",
                 "fields": "f12,f14,f3,f6,f8",
             }
-            r = requests.get(url, params=params, headers=EM_HEADERS, timeout=10)
+            r = _em_session.get(url, params=params, headers=EM_HEADERS, timeout=10)
             data = r.json().get("data", {}).get("diff", [])
             result = []
             for item in data[:15]:

@@ -65,7 +65,7 @@ def get_csi500_stocks() -> list[str]:
 def fetch_live_factors(codes: list[str], days: int = 30) -> dict:
     """从 QMT API 获取技术因子（含 future_ret）"""
     try:
-        r = requests.get(
+        r = requests.post(
             f"http://{QMT_HOST}/live/factors",
             json={"codes": codes, "days": days},
             timeout=60

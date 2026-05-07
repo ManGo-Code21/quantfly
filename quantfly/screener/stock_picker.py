@@ -18,6 +18,8 @@ EM_HEADERS = {
     "Referer": "https://quote.eastmoney.com/",
 }
 EM_HIST_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
+_em_session = requests.Session()
+_em_session.trust_env = False
 
 
 def get_kline_em(code: str, count: int = 100) -> pd.DataFrame:
@@ -31,7 +33,7 @@ def get_kline_em(code: str, count: int = 100) -> pd.DataFrame:
         "klt": "101", "fqt": "1", "beg": "0", "end": "20500101", "lmt": count,
     }
     try:
-        r = requests.get(EM_HIST_URL, params=params, headers=EM_HEADERS, timeout=10)
+        r = _em_session.get(EM_HIST_URL, params=params, headers=EM_HEADERS, timeout=10)
         klines = r.json().get("data", {}).get("klines", [])
         records = []
         for k in klines:

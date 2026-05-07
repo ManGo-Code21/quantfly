@@ -110,21 +110,17 @@ def get_akshare_minute_data(codes: list[str], count: int = 240) -> dict[str, pd.
         logger.warning("akshare 未安装")
         return {}
 
+    import concurrent.futures
+    from typing import Optional, Tuple
+
     result = {}
-    for code in codes:
+
+    def _fetch_one(code: str) -> Tuple[str, Optional[pd.DataFrame]]:
         try:
-            # 判断市场
             mkt = "sh" if code.startswith(("6", "9")) else "sz"
             symbol = f"{mkt}{code.split('.')[0]}"
-
-            # 用东方财富分钟接口
-            df = ak.stock_zh_a_minute(
-                symbol=symbol,
-                period="1",
-                adjust="qfq",
-            )
+            df = ak.stock_zh_a_minute(symbol=symbol, period="1", adjust="qfq")
             if df is not None and len(df) > 0:
-                # 取最近count条
                 df = df.tail(count).copy()
                 if "date" not in df.columns and "时间" in df.columns:
                     df = df.rename(columns={"时间": "date"})
@@ -132,55 +128,83 @@ def get_akshare_minute_data(codes: list[str], count: int = 240) -> dict[str, pd.
                     df = df.rename(columns={"开盘": "open", "收盘": "close",
                                            "最高": "high", "最低": "low",
                                            "成交量": "volume"})
-                result[code] = df
-            time.sleep(0.3)
+                return (code, df)
         except Exception as e:
-            logger.warning(f"akshare获取 {code} 失败: {e}")
+            logger.debug(f"akshare {code} 失败: {e}")
+        return (code, None)
+
+    # 并发拉取，每只股票5s超时
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as pool:
+        futures = {pool.submit(_fetch_one, c): c for c in codes}
+        try:
+            for future in concurrent.futures.as_completed(futures, timeout=30):
+                try:
+                    code, df = future.result(timeout=5)
+                    if df is not None:
+                        result[code] = df
+                except Exception:
+                    pass
+        except concurrent.futures.TimeoutError:
+            pass  # 未完成的future直接丢弃
+
     logger.info(f"akshare数据获取: {len(result)}/{len(codes)} 只")
     return result
 
 
-def get_eastmoney_realtime(codes: list[str]) -> pd.DataFrame:
+def get_sina_realtime(codes: list[str]) -> pd.DataFrame:
     """
-    东方财富实时行情（涨幅/量比/价格）
+    新浪实时行情（涨幅/量比/价格）— 替代东方财富
     """
-    EM_HDR = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-        "Referer": "https://quote.eastmoney.com/",
-    }
-    EM_QUOTE = "https://push2.eastmoney.com/api/qt/clist/get"
+    _sina_session = requests.Session()
+    _sina_session.trust_env = False
+    SINA_QUOTE = "https://hq.sinajs.cn/list="
 
     df_list = []
-    for i in range(0, len(codes), 50):
-        batch = codes[i:i + 50]
-        secids = []
-        for c in batch:
-            mkt = "1" if c.startswith(("6", "9")) else "0"
-            secids.append(f"{mkt}.{c.split('.')[0]}")
-        params = {
-            "ut": "fa5fd1943c7b386f172d6893dbfba10b",
-            "fltt": "2", "invt": "2",
-            "fields": "f2,f3,f4,f5,f6,f7,f8,f10,f12,f14,f15,f16,f17,f18",
-            "secids": ",".join(secids),
-        }
+    # 每批20只
+    for i in range(0, len(codes), 20):
+        batch = codes[i:i + 20]
+        # 拼装sina代码
+        symbols = ",".join(
+            f"sh{c}" if c.startswith(("6", "9")) else f"sz{c}"
+            for c in batch
+        )
         try:
-            r = requests.get(EM_QUOTE, params=params, headers=EM_HDR, timeout=8)
-            data = r.json().get("data", {}).get("diff", [])
-            for item in data:
-                df_list.append({
-                    "code": str(item.get("f12", "")),
-                    "name": item.get("f14", ""),
-                    "close": item.get("f2", 0),
-                    "pct_chg": item.get("f3", 0),
-                    "volume": item.get("f5", 0),
-                    "amount": item.get("f6", 0),
-                    "turn": item.get("f8", 0),
-                    "high": item.get("f15", 0),
-                    "low": item.get("f16", 0),
-                })
+            r = _sina_session.get(
+                SINA_QUOTE + symbols,
+                headers={
+                    "Referer": "https://finance.sina.com.cn",
+                    "User-Agent": "Mozilla/5.0",
+                },
+                timeout=8,
+            )
+            r.encoding = "gbk"
+            for line in r.text.strip().split("\n"):
+                if "hq_str_" not in line:
+                    continue
+                # var hq_str_sh000001="name,open,yclose,close,high,low,...,...
+                try:
+                    content = line.split('="')[1].rstrip('";')
+                    parts = content.split(",")
+                    if len(parts) < 10:
+                        continue
+                    code = line.split('hq_str_')[1].split("=")[0]
+                    code = code.replace("sh", "").replace("sz", "")
+                    df_list.append({
+                        "code": code,
+                        "name": parts[0],
+                        "open": float(parts[1]) if parts[1] else 0,
+                        "yclose": float(parts[2]) if parts[2] else 0,
+                        "close": float(parts[3]) if parts[3] else 0,
+                        "high": float(parts[4]) if parts[4] else 0,
+                        "low": float(parts[5]) if parts[5] else 0,
+                        "pct_chg": float(parts[32]) if len(parts) > 32 and parts[32] else 0,
+                        "volume": float(parts[8]) if parts[8] else 0,
+                    })
+                except Exception:
+                    pass
         except Exception as e:
-            logger.warning(f"EM实时行情获取失败: {e}")
-        time.sleep(0.1)
+            logger.warning(f"新浪实时行情批次{i}失败: {e}")
+        time.sleep(0.05)
 
     return pd.DataFrame(df_list) if df_list else pd.DataFrame()
 
@@ -329,35 +353,15 @@ def rank_stocks(factor_df: pd.DataFrame, model) -> pd.DataFrame:
 def get_universe() -> list[str]:
     """
     返回候选股票池（A股全市场 ≈ 5000只）
-    实际生产建议用中证全指成分股，这里用东方财富全市场替代
+    使用 akshare 全量股票列表，排除科创板(688)
     """
     try:
-        EM_HDR = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-            "Referer": "https://quote.eastmoney.com/",
-        }
-        params = {
-            "pn": 1, "pz": 500,
-            "po": 1, "np": 1,
-            "ut": "bd1d9ddb04089700cf9c27f6f7426281",
-            "fltt": 2, "invt": 2,
-            "fid": "f20",
-            "fs": "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23",
-            "fields": "f12",
-        }
-        r = requests.get(
-            "https://push2.eastmoney.com/api/qt/clist/get",
-            params=params, headers=EM_HDR, timeout=10,
-        )
-        data = r.json().get("data", {})
-        total = data.get("total", 0)
-        logger.info(f"全市场股票数量: {total}")
-        # 取前200只用于演示（实际生产用全量）
-        # 主板(6xxx) + 创业板(0xxx) + 深成(3xxx)，排除科创板(688)
-        # fs参数: m:0+t:6(主板沪) + m:0+t:80(主板深) + m:1+t:2(创业板) + m:1+t:23(科创板外)
-        # 按市值/成交量降序取全市场，排除科创板688（akshare分钟数据质量差）
-        codes = [str(x["f12"]) for x in data.get("diff", [])
-                 if not str(x["f12"]).startswith("688")][:100]
+        import akshare as ak
+        df = ak.stock_info_a_code_name()
+        # 排除科创板（分钟数据质量差）
+        df = df[~df["code"].str.startswith("688")]
+        codes = df["code"].tolist()[:100]
+        logger.info(f"全市场股票数量: {len(df)}，候选前100只")
         return codes
     except Exception as e:
         logger.warning(f"获取股票列表失败: {e}")
@@ -514,7 +518,7 @@ def run(source: str = "qmt", top_n: int = 30, push: bool = True):
     logger.info(f"数据获取完成 ({source_used}): {len(minute_data)} 只")
 
     # Step 3: 获取实时行情
-    realtime = get_eastmoney_realtime(list(minute_data.keys()))
+    realtime = get_sina_realtime(list(minute_data.keys()))
     logger.info(f"实时行情: {len(realtime)} 只")
 
     # Step 4: 计算20因子

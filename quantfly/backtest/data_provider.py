@@ -17,6 +17,8 @@ EM_HEADERS = {
 }
 EM_HIST_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
 EM_QUOTE_URL = "https://push2.eastmoney.com/api/qt/clist/get"
+_em_session = requests.Session()
+_em_session.trust_env = False
 
 
 def get_kline_em(code: str, count: int = 100) -> pd.DataFrame:
@@ -30,7 +32,7 @@ def get_kline_em(code: str, count: int = 100) -> pd.DataFrame:
         "klt": "101", "fqt": "1", "beg": "0", "end": "20500101", "lmt": count,
     }
     try:
-        r = requests.get(EM_HIST_URL, params=params, headers=EM_HEADERS, timeout=10)
+        r = _em_session.get(EM_HIST_URL, params=params, headers=EM_HEADERS, timeout=10)
         klines = r.json().get("data", {}).get("klines", [])
         records = []
         for k in klines:
@@ -67,7 +69,7 @@ def get_realtime_quotes(codes: list) -> pd.DataFrame:
             "secids": ",".join(secids),
         }
         try:
-            r = requests.get(EM_QUOTE_URL, params=params, headers=EM_HEADERS, timeout=10)
+            r = _em_session.get(EM_QUOTE_URL, params=params, headers=EM_HEADERS, timeout=10)
             data = r.json().get("data", {}).get("diff", [])
             for item in data:
                 df_list.append({
@@ -97,7 +99,7 @@ def get_all_limit_up_codes() -> set:
             "fields": "f12",
             "filter": "f3=9.9",
         }
-        r = requests.get(EM_QUOTE_URL, params=params, headers=EM_HEADERS, timeout=10)
+        r = _em_session.get(EM_QUOTE_URL, params=params, headers=EM_HEADERS, timeout=10)
         data = r.json().get("data", {})
         diff = data.get("diff", [])
         return {str(item.get("f12", "")) for item in diff}

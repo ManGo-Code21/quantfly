@@ -13,6 +13,8 @@ EM_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     "Referer": "https://quote.eastmoney.com/",
 }
+_em_session = requests.Session()
+_em_session.trust_env = False
 
 # 产业名 → 东方财富板块代码
 INDUSTRY_SECTOR_MAP = {
@@ -73,7 +75,7 @@ def get_eastmoney_sector_stocks(industry: str) -> list[tuple]:
             "fs": f"b:{bk_code}",
             "fields": "f12,f14,f2,f3,f20",
         }
-        r = requests.get(url, params=params, headers=EM_HEADERS, timeout=10)
+        r = _em_session.get(url, params=params, headers=EM_HEADERS, timeout=10)
         data = r.json()
         stocks = data.get("data", {}).get("diff", [])
 
