@@ -210,16 +210,45 @@ def get_money_flow_em(code: str, days: int = 30) -> list[dict]:
 import sqlite3
 
 # ============================================================
-# 行业分类映射 (code -> industry)
+# 行业分类映射 (code -> industry) — 通过akshare动态构建
 # ============================================================
+def build_industry_map() -> dict:
+    """
+    通过akshare获取全市场行业分类
+    返回: {code: industry_name}
+    """
+    try:
+        import akshare as ak
+        df = ak.stock_board_industry_name_em()
+        industry_map = {}
+        
+        # 取前50个主要行业（避免API调用过多）
+        for _, row in df.head(50).iterrows():
+            board_name = row["板块名称"]
+            try:
+                cons = ak.stock_board_industry_cons_em(symbol=board_name)
+                for _, c in cons.iterrows():
+                    code = c["代码"]
+                    industry_map[code] = board_name
+            except:
+                pass
+            time.sleep(0.1)
+        
+        logger.info(f"行业映射: {len(industry_map)} 只股票, {len(set(industry_map.values()))} 个行业")
+        return industry_map
+    except Exception as e:
+        logger.warning(f"行业映射获取失败: {e}，使用硬编码映射")
+        return STOCK_INDUSTRY.copy()
+
+# 硬编码备用映射
 STOCK_INDUSTRY = {
     "000001": "银行", "600036": "银行", "601166": "银行", "601318": "银行",
-    "000002": "地产", "000776": "券商", "600030": "券商", "601688": "券商",
-    "000333": "家电", "000651": "家电", "600276": "医药",
+    "000002": "房地产开发", "000776": "证券", "600030": "证券", "601688": "证券",
+    "000333": "家电", "000651": "家电", "600276": "化学制药",
     "000858": "白酒", "000568": "白酒", "600809": "白酒",
-    "002714": "农业", "300750": "新能源", "601899": "有色", "002475": "科技",
-    "600519": "白酒", "601012": "光伏", "002230": "科技", "002352": "物流",
-    "002304": "白酒", "601888": "消费", "603259": "医药", "600887": "消费",
+    "002714": "农业", "300750": "电池", "601899": "贵金属", "002475": "消费电子",
+    "600519": "白酒", "601012": "光伏设备", "002230": "消费电子", "002352": "物流",
+    "002304": "白酒", "601888": "旅游", "603259": "化学制药", "600887": "食品加工",
     "600900": "水电",
 }
 
@@ -345,7 +374,7 @@ def get_sample_stocks(n: int = 200) -> list[str]:
 
 def calc_features(df: pd.DataFrame, mf_data: list[dict] = None,
                   code: str = None, news_data: dict = None,
-                  industry_data: dict = None) -> pd.DataFrame:
+                  industry_data: dict = None, industry_map: dict = None) -> pd.DataFrame:
     """计算因子特征（含资金流向+新闻情绪+产业动量）"""
     import math
     if df is None or len(df) < 30:
@@ -362,8 +391,13 @@ def calc_features(df: pd.DataFrame, mf_data: list[dict] = None,
         for m in mf_data:
             mf_by_date[m["date"]] = m
 
+    # 行业分类（优先用动态映射，回退到硬编码）
+    if industry_map and code:
+        industry = industry_map.get(code, STOCK_INDUSTRY.get(code, "其他"))
+    else:
+        industry = STOCK_INDUSTRY.get(code, "其他")
+    
     # 新闻情绪（按行业）
-    industry = STOCK_INDUSTRY.get(code, "其他") if code else "其他"
     ind_news = news_data.get(industry, {}) if news_data else {}
     news_sentiment = ind_news.get("avg_sentiment", 0)
     news_breaking = ind_news.get("breaking_count", 0)
@@ -500,23 +534,30 @@ def main():
         return
     logger.info(f"候选股票: {len(stocks)} 只")
 
-    # Step 2: 加载新闻情绪（全局数据）
+    # Step 2: 构建行业映射（真实数据）
+    logger.info("构建行业映射...")
+    industry_map = build_industry_map()
+    
+    # Step 3: 加载新闻情绪
     news_data = get_news_sentiment_for_industry()
     logger.info(f"新闻情绪: {len(news_data)} 个行业")
 
-    # Step 3: 逐只获取K线、资金流向并计算特征
+    # Step 4: 计算行业动量（通过akshare获取行业板块涨跌幅）
+    logger.info("计算行业动量...")
+    industry_data = calc_industry_momentum_from_board()
+    logger.info(f"行业动量: {len(industry_data)} 个行业")
+
+    # Step 5: 逐只获取K线、资金流向并计算特征
     all_features = []
     for i, code in enumerate(stocks):
         df = get_kline_em(code, count=N_DAYS + FUTURE_N + 30)
         if df.empty or len(df) < 50:
             continue
-        # 行业动量需要该股票的行业信息，这里简化处理
-        ind = STOCK_INDUSTRY.get(code, "其他")
-        industry_data = {ind: {"ret5": 0, "ret10": 0, "rank": 0.5}}  # 先用默认值
         
         mf_data = get_money_flow_em(code, days=30)
         feats = calc_features(df, mf_data=mf_data, code=code,
-                             news_data=news_data, industry_data=industry_data)
+                             news_data=news_data, industry_data=industry_data,
+                             industry_map=industry_map)
         if not feats.empty:
             feats["code"] = code
             all_features.append(feats)
@@ -528,21 +569,19 @@ def main():
         logger.error("没有有效的特征数据")
         return
 
-    # Step 4: 合并并清理
+    # Step 6: 合并并清理
     df_all = pd.concat(all_features, ignore_index=True)
     df_all = df_all.dropna(subset=FEATURE_COLS + ["label"], thresh=len(FEATURE_COLS))
     for col in FEATURE_COLS:
         df_all[col] = df_all[col].fillna(0).replace([np.inf, -np.inf], 0)
     logger.info(f"总样本数: {len(df_all)} 条, {len(df_all['code'].unique())} 只股票")
 
-    # Step 5: Walk-forward 训练 + 验证
+    # Step 7: Walk-forward 训练 + 验证
     dates = sorted(df_all["date"].unique())
     if len(dates) < 60:
         logger.error(f"日期太少: {len(dates)}，无法做walk-forward")
         return
 
-    # 划分训练/验证/测试集（严格时间顺序，无泄漏）
-    # 训练集: 前60% | 验证集: 中间20% | 测试集: 最后20%
     train_end = int(len(dates) * 0.6)
     val_end = int(len(dates) * 0.8)
     train_dates = set(dates[:train_end])
@@ -557,12 +596,10 @@ def main():
     logger.info(f"验证集: {len(df_val)} 条 ({len(val_dates)} 天)")
     logger.info(f"测试集: {len(df_test)} 条 ({len(test_dates)} 天) ← 完全样本外")
 
-    # 降低模型复杂度，防止过拟合
     best_model = None
     best_corr = -1
     best_params = None
 
-    # 网格搜索超参数
     param_grid = [
         {"max_iter": 50, "max_depth": 3, "learning_rate": 0.05, "min_samples_leaf": 50},
         {"max_iter": 80, "max_depth": 3, "learning_rate": 0.03, "min_samples_leaf": 30},
@@ -581,11 +618,9 @@ def main():
         m = HistGradientBoostingRegressor(random_state=42, **params)
         m.fit(X_train, y_train)
         
-        # 验证集相关性
         y_val_pred = m.predict(X_val)
         val_corr = np.corrcoef(y_val_pred, y_val)[0, 1]
         
-        # 测试集相关性
         y_test_pred = m.predict(X_test)
         test_corr = np.corrcoef(y_test_pred, y_test)[0, 1]
         
@@ -600,19 +635,14 @@ def main():
 
     logger.info(f"\n最佳参数: {best_params}")
     logger.info(f"验证集相关性: {best_corr:.3f}")
-
-    # Step 6: 最终测试集评估（一次性的，不参与调参）
-    if len(df_test) > 50:
-        y_test_pred = best_model.predict(X_test)
-        test_corr = np.corrcoef(y_test_pred, y_test)[0, 1]
-        logger.info(f"测试集相关性(样本外): {test_corr:.3f}")
+    logger.info(f"测试集相关性(样本外): {test_corr:.3f}")
     
-    # Step 7: 保存最佳模型
+    # Step 8: 保存最佳模型
     with open(MODEL_OUT, "wb") as f:
         pickle.dump(best_model, f)
     logger.info(f"模型已保存: {MODEL_OUT}")
     
-    # Step 8: 特征重要性分析（排列重要性）
+    # Step 9: 特征重要性
     logger.info("\n=== Top 10 重要因子 ===")
     from sklearn.inspection import permutation_importance
     result = permutation_importance(best_model, X_test, y_test, n_repeats=10, random_state=42)
@@ -620,6 +650,37 @@ def main():
     sorted_idx = np.argsort(importance)[::-1][:10]
     for i, idx in enumerate(sorted_idx, 1):
         logger.info(f"  #{i}: {FEATURE_COLS[idx]:25s} ({importance[idx]:.4f})")
+
+
+def calc_industry_momentum_from_board() -> dict:
+    """
+    通过akshare获取行业板块涨跌幅，计算行业动量
+    返回: {industry_name: {"ret5": float, "ret10": float, "rank": float}}
+    """
+    try:
+        import akshare as ak
+        df = ak.stock_board_industry_name_em()
+        
+        result = {}
+        for _, row in df.iterrows():
+            name = row["板块名称"]
+            pct = row.get("涨跌幅", 0)
+            # 简化：用当日涨跌幅近似作为短期动量
+            result[name] = {
+                "ret5": pct / 100,  # 近似5日
+                "ret10": pct / 100 * 2,  # 近似10日
+                "rank": 0.5  # 后续更新
+            }
+        
+        # 计算排名
+        sorted_items = sorted(result.items(), key=lambda x: -x[1]["ret5"])
+        for rank, (name, _) in enumerate(sorted_items):
+            result[name]["rank"] = rank / max(len(sorted_items) - 1, 1)
+        
+        return result
+    except Exception as e:
+        logger.warning(f"行业动量获取失败: {e}")
+        return {}
 
 
 if __name__ == "__main__":
