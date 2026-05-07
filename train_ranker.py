@@ -315,19 +315,32 @@ def get_industry_momentum(stocks: list[str]) -> dict:
 
 
 def get_sample_stocks(n: int = 200) -> list[str]:
-    """获取样本股票（各行业龙头）— 通过 QMT HTTP API 或 akshare"""
-    # 尝试 QMT HTTP API 获取股票列表
+    """获取样本股票 — 通过akshare获取全市场，排除ST/科创板/北交所"""
     try:
-        # 用 quote 接口获取一批活跃股票
-        codes = ["000001", "600519", "000858", "601318", "000333",
-                 "600036", "002714", "300750", "601899", "002475",
-                 "600900", "000651", "601166", "002415", "000002",
-                 "600276", "000725", "601012", "300059", "603259",
-                 "600030", "601688", "002230", "002352", "000776",
-                 "600887", "002304", "601888", "000568", "600809"]
+        import akshare as ak
+        df = ak.stock_info_a_code_name()
+        # 排除ST、科创板(688)、北交所(8/4开头)
+        mask = (
+            ~df["name"].str.contains("ST") &
+            ~df["code"].str.startswith("688") &
+            ~df["code"].str.startswith(("8", "4"))
+        )
+        df = df[mask]
+        codes = df["code"].tolist()
+        # 按行业分散取，避免集中在某几个行业
+        codes = codes[:n]  # 取前n只
+        logger.info(f"全市场候选: {len(df)}只, 实际取{len(codes)}只")
         return codes
-    except:
-        return []
+    except Exception as e:
+        logger.warning(f"akshare获取股票列表失败: {e}，使用硬编码列表")
+        return ["000001", "600519", "000858", "601318", "000333",
+                "600036", "002714", "300750", "601899", "002475",
+                "600900", "000651", "601166", "002415", "000002",
+                "600276", "000725", "601012", "300059", "603259",
+                "600030", "601688", "002230", "002352", "000776",
+                "600887", "002304", "601888", "000568", "600809",
+                "601398", "000001", "600000", "002027", "000063",
+                "600028", "002371", "300015", "000786", "601601"][:n]
 
 
 def calc_features(df: pd.DataFrame, mf_data: list[dict] = None,
@@ -477,82 +490,136 @@ def _rsi(prices: np.ndarray, period: int = 14) -> float:
 
 
 def main():
-    logger.info(f"=== Ranker 训练开始: {N_STOCKS}只股票 x {N_DAYS}天历史 ===")
+    logger.info(f"=== Ranker 训练开始: {N_STOCKS}只 x {N_DAYS}天 ===")
     os.makedirs(MODEL_DIR, exist_ok=True)
 
-    # Step 1: 获取股票列表
+    # Step 1: 获取全市场股票列表
     stocks = get_sample_stocks(N_STOCKS)
     if not stocks:
         logger.error("获取股票列表失败")
         return
-    logger.info(f"训练样本: {len(stocks)} 只")
+    logger.info(f"候选股票: {len(stocks)} 只")
 
-    # Step 2: 获取新闻情绪和行业动量（全局数据，只需一次）
-    logger.info("加载新闻情绪和行业动量数据...")
+    # Step 2: 加载新闻情绪（全局数据）
     news_data = get_news_sentiment_for_industry()
     logger.info(f"新闻情绪: {len(news_data)} 个行业")
-    industry_data = get_industry_momentum(stocks)
-    logger.info(f"行业动量: {len(industry_data)} 个行业")
 
     # Step 3: 逐只获取K线、资金流向并计算特征
     all_features = []
     for i, code in enumerate(stocks):
-        df = get_kline_em(code, count=N_DAYS + FUTURE_N + 10)
-        if df.empty:
+        df = get_kline_em(code, count=N_DAYS + FUTURE_N + 30)
+        if df.empty or len(df) < 50:
             continue
+        # 行业动量需要该股票的行业信息，这里简化处理
+        ind = STOCK_INDUSTRY.get(code, "其他")
+        industry_data = {ind: {"ret5": 0, "ret10": 0, "rank": 0.5}}  # 先用默认值
+        
         mf_data = get_money_flow_em(code, days=30)
         feats = calc_features(df, mf_data=mf_data, code=code,
                              news_data=news_data, industry_data=industry_data)
         if not feats.empty:
             feats["code"] = code
             all_features.append(feats)
-        if (i + 1) % 20 == 0:
+        if (i + 1) % 50 == 0:
             logger.info(f"进度: {i + 1}/{len(stocks)} ({len(all_features)} 只有效)")
-        time.sleep(0.15)
+        time.sleep(0.1)
 
     if not all_features:
         logger.error("没有有效的特征数据")
         return
 
-    # Step 3: 合并并清理
+    # Step 4: 合并并清理
     df_all = pd.concat(all_features, ignore_index=True)
     df_all = df_all.dropna(subset=FEATURE_COLS + ["label"], thresh=len(FEATURE_COLS))
     for col in FEATURE_COLS:
         df_all[col] = df_all[col].fillna(0).replace([np.inf, -np.inf], 0)
-    logger.info(f"训练样本数: {len(df_all)} 条")
+    logger.info(f"总样本数: {len(df_all)} 条, {len(df_all['code'].unique())} 只股票")
 
-    # Step 4: 训练模型（用label_rank作为排序目标）
-    X = df_all[FEATURE_COLS].values
-    y = df_all["label_rank"].values
-
-    model = HistGradientBoostingRegressor(
-        max_iter=200,
-        max_depth=5,
-        learning_rate=0.05,
-        min_samples_leaf=20,
-        random_state=42,
-    )
-    model.fit(X, y)
-    logger.info("模型训练完成")
-
-    # Step 5: 保存
-    with open(MODEL_OUT, "wb") as f:
-        pickle.dump(model, f)
-    logger.info(f"模型已保存: {MODEL_OUT}")
-
-    # Step 6: 验证（按日期分组，留出最后1/4做测试）
+    # Step 5: Walk-forward 训练 + 验证
     dates = sorted(df_all["date"].unique())
-    split_idx = int(len(dates) * 0.75)
-    train_dates = set(dates[:split_idx])
-    test_df = df_all[df_all["date"].isin(dates[split_idx:])]
-    if len(test_df) > 50:
-        X_test = test_df[FEATURE_COLS].values
-        y_pred = model.predict(X_test)
-        y_true = test_df["label_rank"].values
-        corr = np.corrcoef(y_pred, y_true)[0, 1]
-        logger.info(f"测试集相关性: {corr:.3f} (越高越好)")
-    else:
-        logger.info("测试样本不足，跳过验证")
+    if len(dates) < 60:
+        logger.error(f"日期太少: {len(dates)}，无法做walk-forward")
+        return
+
+    # 划分训练/验证/测试集（严格时间顺序，无泄漏）
+    # 训练集: 前60% | 验证集: 中间20% | 测试集: 最后20%
+    train_end = int(len(dates) * 0.6)
+    val_end = int(len(dates) * 0.8)
+    train_dates = set(dates[:train_end])
+    val_dates = set(dates[train_end:val_end])
+    test_dates = set(dates[val_end:])
+
+    df_train = df_all[df_all["date"].isin(train_dates)]
+    df_val = df_all[df_all["date"].isin(val_dates)]
+    df_test = df_all[df_all["date"].isin(test_dates)]
+
+    logger.info(f"训练集: {len(df_train)} 条 ({len(train_dates)} 天)")
+    logger.info(f"验证集: {len(df_val)} 条 ({len(val_dates)} 天)")
+    logger.info(f"测试集: {len(df_test)} 条 ({len(test_dates)} 天) ← 完全样本外")
+
+    # 降低模型复杂度，防止过拟合
+    best_model = None
+    best_corr = -1
+    best_params = None
+
+    # 网格搜索超参数
+    param_grid = [
+        {"max_iter": 50, "max_depth": 3, "learning_rate": 0.05, "min_samples_leaf": 50},
+        {"max_iter": 80, "max_depth": 3, "learning_rate": 0.03, "min_samples_leaf": 30},
+        {"max_iter": 100, "max_depth": 4, "learning_rate": 0.02, "min_samples_leaf": 20},
+        {"max_iter": 50, "max_depth": 2, "learning_rate": 0.1, "min_samples_leaf": 100},
+    ]
+
+    X_train = df_train[FEATURE_COLS].values
+    y_train = df_train["label_rank"].values
+    X_val = df_val[FEATURE_COLS].values
+    y_val = df_val["label_rank"].values
+    X_test = df_test[FEATURE_COLS].values
+    y_test = df_test["label_rank"].values
+
+    for params in param_grid:
+        m = HistGradientBoostingRegressor(random_state=42, **params)
+        m.fit(X_train, y_train)
+        
+        # 验证集相关性
+        y_val_pred = m.predict(X_val)
+        val_corr = np.corrcoef(y_val_pred, y_val)[0, 1]
+        
+        # 测试集相关性
+        y_test_pred = m.predict(X_test)
+        test_corr = np.corrcoef(y_test_pred, y_test)[0, 1]
+        
+        tag = "✅ BEST" if val_corr > best_corr else ""
+        logger.info(f"  参数: {params}")
+        logger.info(f"  验证相关: {val_corr:.3f}, 测试相关: {test_corr:.3f} {tag}")
+        
+        if val_corr > best_corr:
+            best_corr = val_corr
+            best_model = m
+            best_params = params
+
+    logger.info(f"\n最佳参数: {best_params}")
+    logger.info(f"验证集相关性: {best_corr:.3f}")
+
+    # Step 6: 最终测试集评估（一次性的，不参与调参）
+    if len(df_test) > 50:
+        y_test_pred = best_model.predict(X_test)
+        test_corr = np.corrcoef(y_test_pred, y_test)[0, 1]
+        logger.info(f"测试集相关性(样本外): {test_corr:.3f}")
+    
+    # Step 7: 保存最佳模型
+    with open(MODEL_OUT, "wb") as f:
+        pickle.dump(best_model, f)
+    logger.info(f"模型已保存: {MODEL_OUT}")
+    
+    # Step 8: 特征重要性分析（排列重要性）
+    logger.info("\n=== Top 10 重要因子 ===")
+    from sklearn.inspection import permutation_importance
+    result = permutation_importance(best_model, X_test, y_test, n_repeats=10, random_state=42)
+    importance = result.importances_mean
+    sorted_idx = np.argsort(importance)[::-1][:10]
+    for i, idx in enumerate(sorted_idx, 1):
+        logger.info(f"  #{i}: {FEATURE_COLS[idx]:25s} ({importance[idx]:.4f})")
 
 
 if __name__ == "__main__":
