@@ -17,7 +17,7 @@ import requests
 
 logger = logging.getLogger("QMTClient")
 
-DEFAULT_BASE_URL = "http://192.168.1.100:8888"  # TODO: 改成你的 Windows IP
+DEFAULT_BASE_URL = "http://10.6.98.168:8766"  # Windows QMT API
 
 
 class QMTClient:
@@ -45,61 +45,64 @@ class QMTClient:
 
     def health(self) -> dict:
         """健康检查"""
-        return self._get("/health")
+        return self._get("/live/health")
 
     def get_quote(self, code: str) -> dict:
-        """
-        获取单只证券实时行情
-
-        Args:
-            code: 证券代码，如 "512760" 或 "512760.XSHG"
-        Returns:
-            dict: 行情数据
-        """
-        return self._get("/quote", {"code": code})
+        """获取单只证券实时行情"""
+        code = code.replace(".XSHG", "").replace(".XSHE", "")
+        return self._get("/data/quote", {"codes": code})
 
     def get_quotes(self, codes: list[str]) -> dict:
-        """
-        批量获取实时行情
-
-        Args:
-            codes: 证券代码列表，如 ["512760", "512660"]
-        Returns:
-            dict: {"data": [quote1, quote2, ...]}
-        """
-        codes_str = ",".join(codes)
-        return self._get("/quotes", {"codes": codes_str})
+        """批量获取实时行情"""
+        clean = [c.replace(".XSHG", "").replace(".XSHE", "") for c in codes]
+        codes_str = ",".join(clean)
+        return self._get("/data/quote", {"codes": codes_str})
 
     def get_bars(
         self,
         code: str,
-        period: str = "1m",
+        period: str = "1d",
         count: int = 100,
     ) -> dict:
-        """
-        获取K线数据
-
-        Args:
-            code: 证券代码，如 "512760"
-            period: 周期 "1m"/"5m"/"15m"/"30m"/"1h"/"1d"
-            count: 数量，默认 100
-        Returns:
-            dict: {"code": ..., "period": ..., "count": ..., "data": [...]}
-        """
-        return self._get("/bars", {
+        """获取K线数据"""
+        code = code.replace(".XSHG", "").replace(".XSHE", "")
+        return self._get("/data/kline", {
             "code": code,
             "period": period,
             "count": count,
         })
 
-    def get_positions(self) -> dict:
-        """
-        获取持仓
+    def get_minute(
+        self,
+        code: str,
+        period: str = "5m",
+        count: int = 240,
+    ) -> dict:
+        """获取分钟K线"""
+        code = code.replace(".XSHG", "").replace(".XSHE", "")
+        return self._get("/data/minute", {
+            "code": code,
+            "period": period,
+            "count": count,
+        })
 
-        Returns:
-            dict: {"data": [position1, position2, ...]}
-        """
-        return self._get("/positions")
+    def get_money_flow(self, codes: list[str], days: int = 5) -> dict:
+        """获取资金流向"""
+        clean = [c.replace(".XSHG", "").replace(".XSHE", "") for c in codes]
+        codes_str = ",".join(clean)
+        return self._get("/data/money_flow", {"codes": codes_str, "days": days})
+
+    def get_sectors(self) -> dict:
+        """获取板块列表"""
+        return self._get("/data/sectors")
+
+    def get_sector_stocks(self, sector: str) -> dict:
+        """获取板块成分股"""
+        return self._get("/data/sector/stocks", {"sector": sector})
+
+    def get_positions(self) -> dict:
+        """获取持仓"""
+        return self._get("/live/positions")
 
     # ---- 便捷方法 ----
 
@@ -131,16 +134,15 @@ def main():
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     parser = argparse.ArgumentParser(description="QMT Data Client")
-    parser.add_argument("--host", default="192.168.1.100", help="Windows QMT 服务 IP")
-    parser.add_argument("--port", type=int, default=8888, help="端口")
+    parser.add_argument("--host", default="10.6.98.168", help="Windows QMT 服务 IP")
     parser.add_argument("action", choices=["health", "quote", "quotes", "bars", "positions", "etfs"],
                         help="操作")
     parser.add_argument("--code", default="512760", help="证券代码")
-    parser.add_argument("--period", default="1m", help="周期")
+    parser.add_argument("--period", default="1d", help="周期")
     parser.add_argument("--count", type=int, default=100, help="数量")
     args = parser.parse_args()
 
-    base_url = f"http://{args.host}:{args.port}"
+    base_url = f"http://{args.host}:8766"
     client = QMTClient(base_url=base_url)
 
     if args.action == "health":
