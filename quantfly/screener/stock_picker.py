@@ -10,6 +10,7 @@ from typing import Optional
 
 from quantfly.screener.principle_filter import analyze_stock
 from quantfly.screener.risk_filter import RiskFilter
+from quantfly.screener.fundamental_filter import check_profit_growth
 
 logger = logging.getLogger("Screener")
 
@@ -100,9 +101,11 @@ class TopicDrivenScreener:
         if not safe_stocks:
             return []
 
-        logger.info(f"[{industry}] 开始扫描 {len(safe_stocks[:30])} 只成分股...")
+        # Step 2.5: 基本面过滤（净利润同比环比增长、净利率提升）
+        # 优化：先跑技术面扫描，只对技术面通过的股票进行基本面过滤，减少耗时
+        logger.info(f"[{industry}] 开始技术面扫描 {len(safe_stocks[:30])} 只成分股...")
         results = []
-        for code, name in safe_stocks[:30]:  # 取前30只扫描
+        for code, name in safe_stocks[:30]:
             df = get_kline_em(code, count=100)
             if df.empty or len(df) < 25:
                 continue
@@ -111,6 +114,12 @@ class TopicDrivenScreener:
             if not analysis:
                 continue
 
+            # 仅保留技术面可买的进行基本面过滤
+            if analysis.get("is_buyable"):
+                if not check_profit_growth(code):
+                    logger.info(f"[基本面] {code} {name} 业绩不达标，过滤")
+                    continue
+            
             result = {
                 "code": code,
                 "name": name,
