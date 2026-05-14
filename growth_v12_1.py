@@ -63,15 +63,31 @@ def get_index_data_robust(days=400):
         logger.warning(f"腾讯fallback失败: {e}")
     return pd.DataFrame()
 
-# 加载基本面数据
-FUNDAMENTALS_PATH = Path(__file__).parent / "data" / "fundamentals_2025.json"
-FUNDAMENTALS = {}
-if FUNDAMENTALS_PATH.exists():
-    with open(FUNDAMENTALS_PATH) as f:
-        FUNDAMENTALS = json.load(f)
-    logger.info(f"加载基本面数据: {len(FUNDAMENTALS)}只")
-else:
-    logger.warning("基本面数据文件不存在，质量因子禁用")
+# 加载基本面数据（2024 + 2025，按时间切换避免未来函数）
+FUNDAMENTALS_2024 = {}
+FUNDAMENTALS_2025 = {}
+
+fund_2024_path = Path(__file__).parent / "data" / "fundamentals_2024.json"
+fund_2025_path = Path(__file__).parent / "data" / "fundamentals_2025.json"
+
+if fund_2024_path.exists():
+    with open(fund_2024_path) as f:
+        FUNDAMENTALS_2024 = json.load(f)
+    logger.info(f"加载2024年报: {len(FUNDAMENTALS_2024)}只")
+
+if fund_2025_path.exists():
+    with open(fund_2025_path) as f:
+        FUNDAMENTALS_2025 = json.load(f)
+    logger.info(f"加载2025年报: {len(FUNDAMENTALS_2025)}只")
+
+# 2025年报预计于2026年4月30日前披露完毕
+FUND_SWITCH_DATE = pd.Timestamp("2026-04-01")
+
+def get_fundamentals(code, date):
+    """时间感知：2026-04前用2024年报，之后用2025年报"""
+    if date >= FUND_SWITCH_DATE:
+        return FUNDAMENTALS_2025.get(code, {})
+    return FUNDAMENTALS_2024.get(code, {})
 
 # ============================================================
 # ETF → 行业股票映射（30+行业ETF，覆盖科技/周期/国防/消费/医药/金融）
@@ -235,25 +251,24 @@ def get_top_sectors(sector_stocks, stock_dfs, date, top_n=5, windows=[5, 10, 20]
 # ============================================================
 # V12.1 新增：质量因子 + 情绪因子 + 质量预过滤
 # ============================================================
-def quality_score(code):
-    """基本面质量评分（-0.25 ~ +0.25）"""
-    f = FUNDAMENTALS.get(code, {})
+def quality_score(code, date):
+    """基本面质量评分（-0.25 ~ +0.25），时间感知"""
+    f = get_fundamentals(code, date)
+    if not f:
+        return 0.0  # 无数据中性
     roe = f.get('roe', 0)
-    pg = f.get('profit_g', 0)  # 净利增速
-    rg = f.get('revenue_g', 0)  # 营收增速
+    pg = f.get('profit_g', 0)
+    rg = f.get('revenue_g', 0)
 
-    # ROE质量
     if roe > 15: roe_s = 0.10
     elif roe > 10: roe_s = 0.05
     elif roe > 5: roe_s = 0.0
     else: roe_s = -0.15
 
-    # 净利增速
     if pg > 30: pg_s = 0.08
     elif pg > 0: pg_s = 0.03
     else: pg_s = -0.15
 
-    # 营收增速
     if rg > 20: rg_s = 0.05
     elif rg > 0: rg_s = 0.02
     else: rg_s = -0.05
@@ -261,15 +276,15 @@ def quality_score(code):
     return roe_s + pg_s + rg_s
 
 
-def quality_filter(code):
-    """质量预过滤：ROE<5% 或 净利增速<-20% 排除"""
-    f = FUNDAMENTALS.get(code, {})
+def quality_filter(code, date):
+    """质量预过滤：ROE<5% 或 净利增速<-20% 排除，时间感知"""
+    f = get_fundamentals(code, date)
     if not f:
-        return True  # 无数据不过滤
+        return True
     roe = f.get('roe', 10)
     pg = f.get('profit_g', 10)
     if roe < 5 or pg < -20:
-        return False  # 排除
+        return False
     return True
 
 
@@ -301,7 +316,7 @@ def select_stocks_from_sectors(top_sectors, sector_stocks, stock_dfs, date, top_
             seen_codes.add(code)
 
             # 质量预过滤
-            if not quality_filter(code):
+            if not quality_filter(code, date):
                 filtered_count += 1
                 continue
 
@@ -346,7 +361,7 @@ def select_stocks_from_sectors(top_sectors, sector_stocks, stock_dfs, date, top_
                 vol_score = 0.05
 
             # 质量 15%（新增）
-            quality = quality_score(code)
+            quality = quality_score(code, date)
 
             # 情绪 5%（新增）
             sentiment = sentiment_score(df, idx)
