@@ -39,11 +39,8 @@ def init(context):
     log.info("=" * 50)
 
     # 拉取初始数据
-    log.info("拉取初始数据...")
-    v13.fetch_all()
-    log.info(f"  指数: {len(v13.index_df)} 条")
-    log.info(f"  个股: {len(v13.stock_dfs)} 只有效")
-    log.info(f"  基本面: {len(v13.fundamentals)} 只")
+    # ⚠️ MiniQMT init() 有超时限制，数据由 handle_data() 中的 v13.run() 自动拉取
+    # 如需调试可手动调用: v13.fetch_all()
 
 
 def handle_data(context, data):
