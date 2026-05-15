@@ -101,7 +101,7 @@ class V13Strategy:
         for fname, label in files:
             fpath = self.data_dir / fname
             if fpath.exists():
-                with open(fpath) as f:
+                with open(fpath, encoding='utf-8') as f:
                     data = json.load(f)
                 for code, vals in data.items():
                     if code not in self.fundamentals:
