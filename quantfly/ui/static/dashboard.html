@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuantFly Dashboard</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+.header{background:#1e293b;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #334155}
+.header h1{font-size:20px;color:#38bdf8}
+.header .time{font-size:14px;color:#94a3b8}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px;padding:16px}
+.card{background:#1e293b;border-radius:12px;padding:16px;border:1px solid #334155}
+.card h2{font-size:16px;margin-bottom:12px;color:#38bdf8;border-bottom:1px solid #334155;padding-bottom:8px}
+.row{display:flex;justify-content:space-between;margin:6px 0;font-size:14px}
+.label{color:#94a3b8}
+.value{font-weight:600}
+.positive{color:#22c55e}
+.negative{color:#ef4444}
+.neutral{color:#f59e0b}
+.sector-bar{height:8px;border-radius:4px;margin:2px 0;transition:width .3s}
+.sector-name{font-size:12px;width:80px;overflow:hidden;text-overflow:ellipsis}
+.sector-pct{font-size:12px;width:55px;text-align:right}
+.alert-item{font-size:13px;padding:4px 8px;margin:4px 0;border-radius:6px;background:#334155;border-left:3px solid #f59e0b}
+.alert-item.limit_up{border-left-color:#ef4444}
+.alert-item.volume_surge{border-left-color:#22c55e}
+.pulse{animation:pulse 1.5s infinite}
+@keyframes pulse{50%{opacity:.5}}
+.loading{color:#64748b;font-style:italic}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;margin:2px}
+.badge.bull{background:#064e3b;color:#22c55e}
+.badge.bear{background:#450a0a;color:#ef4444}
+.badge.neutral{background:#4a3f00;color:#f59e0b}
+.index-card{display:flex;justify-content:space-around;text-align:center;margin:12px 0}
+.index-item .name{font-size:12px;color:#94a3b8}
+.index-item .price{font-size:18px;font-weight:700}
+.index-item .chg{font-size:13px}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🐉 QuantFly Dashboard</h1>
+  <span class="time" id="clock"></span>
+</div>
+<div class="grid">
+  <!-- 策略状态 -->
+  <div class="card" id="strategy-card">
+    <h2>🎯 策略状态</h2>
+    <div class="loading">加载中...</div>
+  </div>
+  <!-- 市场情绪 -->
+  <div class="card" id="sentiment-card">
+    <h2>📊 市场情绪</h2>
+    <div class="loading">加载中...</div>
+  </div>
+  <!-- 板块热力 -->
+  <div class="card" id="sector-card">
+    <h2>🔥 板块热力 TOP8</h2>
+    <div class="loading">加载中...</div>
+  </div>
+  <!-- 资金流向 -->
+  <div class="card" id="flow-card">
+    <h2>💰 资金流向</h2>
+    <div class="loading">加载中...</div>
+  </div>
+  <!-- 异动告警 -->
+  <div class="card" id="alert-card">
+    <h2>🚨 异动告警</h2>
+    <div class="loading">加载中...</div>
+  </div>
+  <!-- 盘面概览 -->
+  <div class="card" id="market-card">
+    <h2>📈 盘面概览</h2>
+    <div class="loading">加载中...</div>
+  </div>
+</div>
+
+<script>
+const API = '';
+
+async function fetchJSON(url) {
+  try { const r = await fetch(API + url); return r.json(); }
+  catch(e) { return null; }
+}
+
+function pctClass(v) { return v>0?'positive':v<0?'negative':'neutral'; }
+function pctStr(v) { return (v>0?'+':'')+v.toFixed(2)+'%'; }
+
+// 时钟
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleString('zh-CN');
+} setInterval(updateClock,1000); updateClock();
+
+// 策略状态
+async function loadStrategy() {
+  const sig = await fetchJSON('/strategy/status');
+  const card = document.getElementById('strategy-card');
+  if(!sig || sig.error) { card.innerHTML='<h2>🎯 策略状态</h2><div class="loading">API 未就绪</div>'; return; }
+  const modeBadge = sig.is_bearish ? '<span class="badge bear">🐻 熊市防御</span>' : '<span class="badge bull">🐂 牛市进攻</span>';
+  card.innerHTML = `<h2>🎯 策略状态</h2>
+    <div style="text-align:center;margin:12px 0">${modeBadge}</div>
+    <div class="row"><span class="label">市场温度</span><span class="value">${sig.temperature?.toFixed(1)||'--'}°</span></div>
+    <div class="row"><span class="label">目标仓位</span><span class="value">${((sig.target_position||0)*100).toFixed(0)}%</span></div>
+    <div class="row"><span class="label">波动率</span><span class="value">${sig.volatility?.toFixed(1)||'--'}</span></div>
+    <div class="row"><span class="label">下次调仓</span><span class="value">${sig.next_rebalance||'--'}</span></div>`;
+}
+
+// 情绪
+async function loadSentiment() {
+  const s = await fetchJSON('/sentiment/index');
+  const card = document.getElementById('sentiment-card');
+  if(!s || s.error) return;
+  const color = s.score>=55?'#22c55e':s.score>=45?'#f59e0b':'#ef4444';
+  card.innerHTML = `<h2>📊 市场情绪</h2>
+    <div style="text-align:center;font-size:48px;font-weight:700;color:${color};margin:8px 0">${s.score}</div>
+    <div style="text-align:center;font-size:14px;margin-bottom:12px">${s.label}</div>
+    <div class="row"><span class="label">涨跌比</span><span class="value">${s.details?.up_count||0}:${s.details?.down_count||0}</span></div>
+    <div class="row"><span class="label">量比</span><span class="value">${s.details?.volume_ratio?.toFixed(2)||'--'}</span></div>
+    <div class="row"><span class="label">北向资金</span><span class="value ${s.details?.north_flow>0?'positive':'negative'}">${(s.details?.north_flow||0).toFixed(1)}亿</span></div>
+    <div class="row"><span class="label">涨停数</span><span class="value">${s.details?.limit_up_count||0}</span></div>`;
+}
+
+// 板块热力
+async function loadSectors() {
+  const d = await fetchJSON('/dashboard/sectors?limit=8');
+  const card = document.getElementById('sector-card');
+  if(!d || !d.sectors) return;
+  const maxChg = Math.max(...d.sectors.map(s=>Math.abs(s.pct_chg)), 1);
+  card.innerHTML = `<h2>🔥 板块热力 TOP8</h2>
+    <div style="margin-bottom:8px;font-size:12px;color:#94a3b8">涨:${d.summary?.up} 跌:${d.summary?.down} 均:${d.summary?.avg_pct}%</div>
+    ${d.sectors.slice(0,8).map(s=>`
+      <div class="row" style="align-items:center">
+        <span class="sector-name">${s.name}</span>
+        <div style="flex:1;margin:0 8px;background:#334155;border-radius:4px;height:8px">
+          <div class="sector-bar" style="width:${Math.abs(s.pct_chg)/maxChg*100}%;background:${s.pct_chg>0?'#22c55e':'#ef4444'}"></div>
+        </div>
+        <span class="sector-pct ${pctClass(s.pct_chg)}">${pctStr(s.pct_chg)}</span>
+      </div>`).join('')}`;
+}
+
+// 资金流向
+async function loadFlow() {
+  const f = await fetchJSON('/flow/overview');
+  const card = document.getElementById('flow-card');
+  if(!f || f.error) return;
+  card.innerHTML = `<h2>💰 资金流向</h2>
+    <div class="row"><span class="label">北向合计</span><span class="value ${f.north_bound?.total>0?'positive':'negative'}">${(f.north_bound?.total||0).toFixed(1)}亿</span></div>
+    <div class="row"><span class="label">沪股通</span><span class="value ${(f.north_bound?.shanghai||0)>0?'positive':'negative'}">${(f.north_bound?.shanghai||0).toFixed(1)}亿</span></div>
+    <div class="row"><span class="label">深股通</span><span class="value ${(f.north_bound?.shenzhen||0)>0?'positive':'negative'}">${(f.north_bound?.shenzhen||0).toFixed(1)}亿</span></div>
+    <div class="row"><span class="label">主力净流入</span><span class="value ${f.sector_summary?.net_flow>0?'positive':'negative'}">${(f.sector_summary?.net_flow||0).toFixed(1)}亿</span></div>
+    <div style="margin-top:8px;font-size:12px;color:#94a3b8">流入TOP3:</div>
+    ${(f.inflow_top10||[]).slice(0,3).map(s=>`<div class="row"><span class="label">${s.name}</span><span class="value positive">+${(s.main_net_inflow/1e4).toFixed(1)}亿</span></div>`).join('')}
+    <div style="margin-top:4px;font-size:12px;color:#94a3b8">流出TOP3:</div>
+    ${(f.outflow_top10||[]).slice(0,3).map(s=>`<div class="row"><span class="label">${s.name}</span><span class="value negative">${(s.main_net_inflow/1e4).toFixed(1)}亿</span></div>`).join('')}`;
+}
+
+// 异动告警
+async function loadAlerts() {
+  const a = await fetchJSON('/monitor/alerts');
+  const card = document.getElementById('alert-card');
+  if(!a) return;
+  card.innerHTML = `<h2>🚨 异动告警 <span style="font-size:12px;color:#94a3b8">(${a.count||0}条)</span></h2>
+    ${(a.alerts||[]).slice(0,8).map(al=>`
+      <div class="alert-item ${al.type}">
+        <b>${al.name||al.code}</b>
+        ${al.type==='limit_up'?'🔴涨停':'📊量比'+al.volume_ratio}
+        <span class="${pctClass(al.pct_chg)}"> ${pctStr(al.pct_chg)}</span>
+      </div>`).join('')||'<div class="loading">暂无告警</div>'}`;
+}
+
+// 盘面概览
+async function loadMarket() {
+  const m = await fetchJSON('/monitor/summary');
+  const card = document.getElementById('market-card');
+  if(!m) return;
+  const idx = (m.market||[]).map(i=>`
+    <div class="index-item">
+      <div class="name">${i.name}</div>
+      <div class="price">${i.price?.toFixed(2)||'--'}</div>
+      <div class="chg ${pctClass(i.pct_chg)}">${pctStr(i.pct_chg)}</div>
+    </div>`).join('');
+  card.innerHTML = `<h2>📈 盘面概览</h2>
+    <div class="index-card">${idx}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+      <div>📈 上涨 <span class="positive">${m.breadth?.up||0}</span></div>
+      <div>📉 下跌 <span class="negative">${m.breadth?.down||0}</span></div>
+      <div>⚖️ 平盘 <span>${m.breadth?.flat||0}</span></div>
+      <div>📊 上涨比 <span>${m.breadth?.up_ratio||0}%</span></div>
+    </div>`;
+}
+
+// 刷新全部
+function refreshAll() {
+  loadStrategy();
+  loadSentiment();
+  loadSectors();
+  loadFlow();
+  loadAlerts();
+  loadMarket();
+}
+refreshAll();
+setInterval(refreshAll, 30000);
+</script>
+</body>
+</html>

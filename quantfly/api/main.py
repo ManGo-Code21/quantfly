@@ -7,7 +7,7 @@ import os
 app = FastAPI(
     title="QuantFly",
     description="A股量化交易框架",
-    version="0.2.0",
+    version="0.3.0",
 )
 
 app.add_middleware(
@@ -18,7 +18,7 @@ app.add_middleware(
 )
 
 # Routes
-from quantfly.api.routes import hot_topics, screener, backtest, kline, trading, live, data
+from quantfly.api.routes import hot_topics, screener, backtest, kline, trading, live, data, strategy, dashboard, flow, sentiment, monitor
 app.include_router(hot_topics.router)
 app.include_router(screener.router)
 app.include_router(backtest.router)
@@ -26,6 +26,11 @@ app.include_router(kline.router)
 app.include_router(trading.router)
 app.include_router(live.router)
 app.include_router(data.router)
+app.include_router(strategy.router)
+app.include_router(dashboard.router)
+app.include_router(flow.router)
+app.include_router(sentiment.router)
+app.include_router(monitor.router)
 
 # Static files (frontend)
 static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ui", "static")
@@ -44,6 +49,11 @@ async def root():
                 "GET  /live/rank?days=300&stocks=500",
                 "POST /live/factors  {\"codes\":[\"000001\"],\"days\":100}",
             ],
+            "strategy": [
+                "POST /strategy/signal  {\"current_position\":0.5}",
+                "GET  /strategy/status",
+                "GET  /strategy/positions",
+            ],
             "data": [
                 "GET  /data/quote?codes=000001,600000",
                 "GET  /data/kline?code=000001&period=1d&count=100",
@@ -55,6 +65,25 @@ async def root():
                 "GET  /data/index_weight?index=000300",
                 "GET  /data/financial?codes=000001",
                 "GET  /data/calendar",
+            ],
+            "flow": [
+                "GET  /flow/overview",
+                "GET  /flow/sectors",
+                "GET  /flow/stock/{code}?days=5",
+            ],
+            "sentiment": [
+                "GET  /sentiment/index",
+                "GET  /sentiment/history?days=20",
+                "GET  /sentiment/news?limit=20",
+            ],
+            "monitor": [
+                "GET  /monitor/summary",
+                "GET  /monitor/alerts",
+            ],
+            "dashboard": [
+                "GET  /dashboard/positions",
+                "GET  /dashboard/sectors?sort_by=pct_chg&limit=20",
+                "GET  /dashboard/hot",
             ],
         },
         "docs": "/docs",
