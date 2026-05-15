@@ -37,7 +37,7 @@ logger = logging.getLogger("V13_Live")
 # ============================================================
 # 配置
 # ============================================================
-QMT_HOST = "http://127.0.0.1:8765"   # Windows 本地 MiniQMT
+QMT_HOST = "http://127.0.0.1:8765"   # MiniQMT 本地地址
 TOP_N = 4
 KF_COUNT = 300  # K线回溯天数
 TREND_FILTER_MA = 60
