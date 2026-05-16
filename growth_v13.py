@@ -1,12 +1,10 @@
 # -*- encoding: utf-8 -*-
 """
-V13 — V12.1 增强版：牛熊切换 + 趋势过滤器 + 质量/情绪因子
+V13.1 — V13 + 风险平价权重 (Risk Parity)
 ================================================================
-定位：牛市全仓进攻 (V12.1)，熊市 30% 防御。
-
-核心逻辑：
-  🐂 沪深300 > MA60 → V12.1 原版（全仓，质量+情绪因子）
-  🐻 沪深300 < MA60 → 仓位压缩至 30%（继续用同策略选股）
+核心新增：
+  🆕 风险平价权重：等权 → 波动率倒数加权，每标的贡献等量风险
+  🆕 RISK_PARITY_ENABLED = True 开关可切回等权对比
 """
 import os
 for var in ['http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY']:
@@ -126,6 +124,41 @@ def get_index_data_robust(days=1200):
 
 
 # ============================================================
+# ============================================================
+# 🆕 风险平价权重 (V13.1)
+# ============================================================
+RISK_PARITY_ENABLED = True
+RISK_PARITY_WINDOW = 20  # 波动率计算窗口
+
+def calc_risk_parity_weights(target_codes, stock_dfs, date):
+    """风险平价权重：波动率倒数加权，使每个标的贡献等量风险"""
+    vol_estimates = {}
+    for code in target_codes:
+        if code not in stock_dfs or date not in stock_dfs[code].index:
+            vol_estimates[code] = None
+            continue
+        df = stock_dfs[code]
+        idx = df.index.get_loc(date)
+        if idx < RISK_PARITY_WINDOW:
+            vol_estimates[code] = None
+            continue
+        # 计算 20 日年化波动率
+        close_prices = df['close'].iloc[idx-RISK_PARITY_WINDOW+1:idx+1].values
+        log_returns = np.diff(np.log(close_prices))
+        vol = np.std(log_returns) * np.sqrt(252)
+        vol_estimates[code] = vol if vol > 0 else None
+
+    # 对有效波动率取倒数
+    valid = {c: v for c, v in vol_estimates.items() if v is not None}
+    if len(valid) < 2:
+        return None  # 不足2只 → fallback 等权
+
+    inv_vol = {c: 1.0/v for c, v in valid.items()}
+    total_inv = sum(inv_vol.values())
+    weights = {c: inv / total_inv for c, inv in inv_vol.items()}
+    return weights
+
+
 # 基本面数据加载（时间感知，避免未来函数）
 # ============================================================
 FUNDAMENTALS_2024 = {}
@@ -719,12 +752,20 @@ def growth_backtest_v13():
                     del positions[c]
                     if c in cost_basis: del cost_basis[c]
 
-                per_stock = target_value / len(target_codes) if target_codes else 0
+                # 🆕 风险平价权重 或 等权 fallback
+                if RISK_PARITY_ENABLED:
+                    weights = calc_risk_parity_weights(target_codes, stock_dfs, date)
+                    if weights is None:
+                        weights = {code: 1.0/len(target_codes) for code in target_codes}
+                else:
+                    weights = {code: 1.0/len(target_codes) for code in target_codes}
+
                 for code in target_codes:
                     if code in stock_dfs and date in stock_dfs[code].index:
                         price = stock_dfs[code].loc[date, 'close']
-                        if price > 0 and per_stock > 0:
-                            shares = int(per_stock / price)
+                        alloc = target_value * weights.get(code, 0)
+                        if price > 0 and alloc > 0:
+                            shares = int(alloc / price)
                             positions[code] = shares
                             cost_basis[code] = price
                             cash -= shares * price

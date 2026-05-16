@@ -1,0 +1,373 @@
+{
+  "generated_at": "2026-05-16",
+  "rules": {
+    "stock_range": "10-80",
+    "min_freq": 2,
+    "require_logic": true
+  },
+  "tier1_core": [
+    {
+      "name": "BC电池",
+      "freq": 3,
+      "logic": "电池",
+      "stock_count": 52,
+      "avg_chg": -2.06,
+      "dates": [
+        "2025年8月1日",
+        "2026年1月15日",
+        "2026年5月1日"
+      ],
+      "category": "新能源",
+      "business": "tech"
+    },
+    {
+      "name": "MLOps概念",
+      "freq": 2,
+      "logic": "MLOps",
+      "stock_count": 18,
+      "avg_chg": -0.17,
+      "dates": [
+        "2025年8月1日",
+        "2026年3月1日"
+      ],
+      "category": "AI/算力",
+      "business": "tech"
+    },
+    {
+      "name": "华为欧拉",
+      "freq": 2,
+      "logic": "华为",
+      "stock_count": 46,
+      "avg_chg": -0.95,
+      "dates": [
+        "2025年8月1日",
+        "2026年3月1日"
+      ],
+      "category": "华为生态",
+      "business": "tech"
+    },
+    {
+      "name": "华为盘古",
+      "freq": 2,
+      "logic": "华为",
+      "stock_count": 29,
+      "avg_chg": -0.67,
+      "dates": [
+        "2025年8月1日",
+        "2026年3月1日"
+      ],
+      "category": "AI/算力",
+      "business": "tech"
+    }
+  ],
+  "tier2_watch": [
+    {
+      "name": "动物疫苗",
+      "freq": 4,
+      "logic": "疫苗",
+      "stock_count": 20,
+      "avg_chg": -0.39,
+      "dates": [
+        "2025年5月15日",
+        "2025年6月1日",
+        "2025年8月1日",
+        "2025年9月15日"
+      ],
+      "category": "医药/医疗",
+      "business": "sectoral"
+    },
+    {
+      "name": "幽门螺杆菌概念",
+      "freq": 4,
+      "logic": "幽门",
+      "stock_count": 74,
+      "avg_chg": -0.88,
+      "dates": [
+        "2025年3月15日",
+        "2025年5月15日",
+        "2025年8月1日",
+        "2025年10月15日"
+      ],
+      "category": "医药/医疗",
+      "business": "sectoral"
+    },
+    {
+      "name": "辅助生殖",
+      "freq": 3,
+      "logic": "辅助生殖",
+      "stock_count": 74,
+      "avg_chg": -1.26,
+      "dates": [
+        "2025年3月15日",
+        "2025年6月1日",
+        "2025年10月15日"
+      ],
+      "category": "医药/医疗",
+      "business": "sectoral"
+    },
+    {
+      "name": "金属铅",
+      "freq": 3,
+      "logic": "铅",
+      "stock_count": 39,
+      "avg_chg": -4.61,
+      "dates": [
+        "2025年12月1日",
+        "2026年1月15日",
+        "2026年3月1日"
+      ],
+      "category": "资源/周期",
+      "business": "commodity"
+    },
+    {
+      "name": "金属锌",
+      "freq": 3,
+      "logic": "锌",
+      "stock_count": 44,
+      "avg_chg": -4.35,
+      "dates": [
+        "2025年12月1日",
+        "2026年1月15日",
+        "2026年3月1日"
+      ],
+      "category": "资源/周期",
+      "business": "commodity"
+    },
+    {
+      "name": "PET铜箔",
+      "freq": 2,
+      "logic": "铜箔",
+      "stock_count": 48,
+      "avg_chg": -1.08,
+      "dates": [
+        "2026年1月15日",
+        "2026年5月1日"
+      ],
+      "category": "资源/周期",
+      "business": "commodity"
+    },
+    {
+      "name": "医美概念",
+      "freq": 2,
+      "logic": "医美",
+      "stock_count": 94,
+      "avg_chg": -0.93,
+      "dates": [
+        "2025年5月15日",
+        "2025年6月1日"
+      ],
+      "category": "医药/医疗",
+      "business": "sectoral"
+    },
+    {
+      "name": "医药电商",
+      "freq": 2,
+      "logic": "医药",
+      "stock_count": 174,
+      "avg_chg": -0.99,
+      "dates": [
+        "2025年6月1日",
+        "2025年8月1日"
+      ],
+      "category": "医药/医疗",
+      "business": "sectoral"
+    },
+    {
+      "name": "金属钴",
+      "freq": 2,
+      "logic": "钴",
+      "stock_count": 32,
+      "avg_chg": -2.59,
+      "dates": [
+        "2026年1月15日",
+        "2026年3月1日"
+      ],
+      "category": "资源/周期",
+      "business": "commodity"
+    }
+  ],
+  "tier3_observe": [
+    {
+      "name": "金属铜",
+      "freq": 3,
+      "logic": "铜",
+      "stock_count": 95,
+      "avg_chg": -3.33,
+      "dates": [
+        "2025年12月1日",
+        "2026年1月15日",
+        "2026年3月1日"
+      ],
+      "reason": "资源周期+成分股95只(>80)"
+    },
+    {
+      "name": "MCU芯片",
+      "freq": 2,
+      "logic": "芯片",
+      "stock_count": 93,
+      "avg_chg": -0.98,
+      "dates": [
+        "2025年12月1日",
+        "2026年5月1日"
+      ],
+      "reason": "成分股93只(>80)"
+    },
+    {
+      "name": "TOPCON电池",
+      "freq": 2,
+      "logic": "电池",
+      "stock_count": 82,
+      "avg_chg": -1.49,
+      "dates": [
+        "2025年8月1日",
+        "2026年5月1日"
+      ],
+      "reason": "成分股82只(>80)"
+    },
+    {
+      "name": "中芯国际概念",
+      "freq": 2,
+      "logic": "中芯",
+      "stock_count": 89,
+      "avg_chg": 1.4,
+      "dates": [
+        "2026年1月15日",
+        "2026年5月1日"
+      ],
+      "reason": "成分股89只(>80)"
+    },
+    {
+      "name": "华为昇腾",
+      "freq": 2,
+      "logic": "华为",
+      "stock_count": 105,
+      "avg_chg": -1.01,
+      "dates": [
+        "2025年8月1日",
+        "2026年3月1日"
+      ],
+      "reason": "成分股105只(>80)"
+    },
+    {
+      "name": "华为汽车",
+      "freq": 2,
+      "logic": "华为",
+      "stock_count": 173,
+      "avg_chg": 0.96,
+      "dates": [
+        "2025年9月15日",
+        "2025年10月15日"
+      ],
+      "reason": "成分股173只(>80)"
+    },
+    {
+      "name": "华为鲲鹏",
+      "freq": 2,
+      "logic": "华为",
+      "stock_count": 176,
+      "avg_chg": -0.94,
+      "dates": [
+        "2025年8月1日",
+        "2026年3月1日"
+      ],
+      "reason": "成分股176只(>80)"
+    },
+    {
+      "name": "小米汽车",
+      "freq": 2,
+      "logic": "汽车",
+      "stock_count": 118,
+      "avg_chg": 0.6,
+      "dates": [
+        "2025年9月15日",
+        "2025年10月15日"
+      ],
+      "reason": "成分股118只(>80)"
+    },
+    {
+      "name": "小金属概念",
+      "freq": 2,
+      "logic": "小金属",
+      "stock_count": 168,
+      "avg_chg": -2.26,
+      "dates": [
+        "2026年1月15日",
+        "2026年3月1日"
+      ],
+      "reason": "资源周期+成分股168只(>80)"
+    },
+    {
+      "name": "毫米波雷达",
+      "freq": 2,
+      "logic": "雷达",
+      "stock_count": 125,
+      "avg_chg": -0.63,
+      "dates": [
+        "2025年10月15日",
+        "2025年12月1日"
+      ],
+      "reason": "成分股125只(>80)"
+    },
+    {
+      "name": "汽车热管理",
+      "freq": 2,
+      "logic": "汽车",
+      "stock_count": 138,
+      "avg_chg": 1.4,
+      "dates": [
+        "2025年9月15日",
+        "2025年10月15日"
+      ],
+      "reason": "成分股138只(>80)"
+    },
+    {
+      "name": "金属镍",
+      "freq": 2,
+      "logic": "镍",
+      "stock_count": 6,
+      "avg_chg": -2.69,
+      "dates": [
+        "2026年1月15日",
+        "2026年3月1日"
+      ],
+      "reason": "成分股6只(范围外)"
+    },
+    {
+      "name": "长安汽车概念",
+      "freq": 2,
+      "logic": "汽车",
+      "stock_count": 228,
+      "avg_chg": 0.66,
+      "dates": [
+        "2025年9月15日",
+        "2025年10月15日"
+      ],
+      "reason": "成分股228只(范围外)"
+    },
+    {
+      "name": "黄金概念",
+      "freq": 2,
+      "logic": "黄金",
+      "stock_count": 81,
+      "avg_chg": -3.74,
+      "dates": [
+        "2025年6月15日",
+        "2026年3月1日"
+      ],
+      "reason": "资源周期+成分股81只(>80)"
+    },
+    {
+      "name": "存储芯片",
+      "freq": 2,
+      "logic": "芯片",
+      "stock_count": 185,
+      "avg_chg": 0.16,
+      "dates": [
+        "2026年1月15日",
+        "2026年5月1日"
+      ],
+      "flag": "成分股185只(>80)",
+      "reason": "成分股185只-watchlist"
+    }
+  ]
+}

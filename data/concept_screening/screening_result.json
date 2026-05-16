@@ -1,0 +1,1652 @@
+{
+  "generated_at": "2026-05-16 12:23:24",
+  "rules": {
+    "stock_range": "10-80",
+    "min_frequency": 2,
+    "require_industry_logic": true
+  },
+  "good_concepts": [
+    {
+      "name": "CRO概念",
+      "freq": 3,
+      "logic_kw": "CRO",
+      "sample_dates": [
+        "2025年6月1日",
+        "2025年9月15日",
+        "2025年10月15日"
+      ],
+      "avg_chg": -0.4463,
+      "stock_count": 73
+    },
+    {
+      "name": "AI手机",
+      "freq": 2,
+      "logic_kw": "AI",
+      "sample_dates": [
+        "2025年3月15日",
+        "2025年12月1日"
+      ],
+      "avg_chg": -0.9427,
+      "stock_count": 38
+    },
+    {
+      "name": "一体化压铸",
+      "freq": 2,
+      "logic_kw": "一体化压铸",
+      "sample_dates": [
+        "2025年9月15日",
+        "2026年5月1日"
+      ],
+      "avg_chg": 1.4288,
+      "stock_count": 54
+    },
+    {
+      "name": "中国AI 50",
+      "freq": 2,
+      "logic_kw": "AI",
+      "sample_dates": [
+        "2025年10月15日",
+        "2026年5月1日"
+      ],
+      "avg_chg": -0.4123,
+      "stock_count": 50
+    },
+    {
+      "name": "先进封装",
+      "freq": 2,
+      "logic_kw": "先进封装",
+      "sample_dates": [
+        "2026年1月15日",
+        "2026年5月1日"
+      ],
+      "avg_chg": -0.3009,
+      "stock_count": 169
+    },
+    {
+      "name": "光刻胶",
+      "freq": 2,
+      "logic_kw": "光刻胶",
+      "sample_dates": [
+        "2025年12月1日",
+        "2026年1月15日"
+      ],
+      "avg_chg": 1.4687999999999999,
+      "stock_count": 74
+    },
+    {
+      "name": "减肥药",
+      "freq": 2,
+      "logic_kw": "减肥药",
+      "sample_dates": [
+        "2025年6月1日",
+        "2025年10月15日"
+      ],
+      "avg_chg": -0.9462,
+      "stock_count": 62
+    },
+    {
+      "name": "国产航母",
+      "freq": 2,
+      "logic_kw": "航母",
+      "sample_dates": [
+        "2025年6月1日",
+        "2025年6月15日"
+      ],
+      "avg_chg": -1.4853999999999998,
+      "stock_count": 36
+    },
+    {
+      "name": "多模态AI",
+      "freq": 2,
+      "logic_kw": "AI",
+      "sample_dates": [
+        "2025年8月1日",
+        "2026年3月1日"
+      ],
+      "avg_chg": -0.5414,
+      "stock_count": 149
+    },
+    {
+      "name": "大飞机",
+      "freq": 2,
+      "logic_kw": "大飞机",
+      "sample_dates": [
+        "2025年6月15日",
+        "2026年5月1日"
+      ],
+      "avg_chg": -0.6231,
+      "stock_count": 152
+    },
+    {
+      "name": "存储芯片",
+      "freq": 2,
+      "logic_kw": "存储",
+      "sample_dates": [
+        "2026年1月15日",
+        "2026年5月1日"
+      ],
+      "avg_chg": 0.1587,
+      "stock_count": 185
+    },
+    {
+      "name": "工业大麻",
+      "freq": 2,
+      "logic_kw": "工业",
+      "sample_dates": [
+        "2025年5月15日",
+        "2025年9月15日"
+      ],
+      "avg_chg": -0.8298,
+      "stock_count": 31
+    },
+    {
+      "name": "智谱AI",
+      "freq": 2,
+      "logic_kw": "AI",
+      "sample_dates": [
+        "2025年8月1日",
+        "2026年3月1日"
+      ],
+      "avg_chg": -0.23500000000000001,
+      "stock_count": 70
+    },
+    {
+      "name": "细胞免疫治疗",
+      "freq": 2,
+      "logic_kw": "细胞",
+      "sample_dates": [
+        "2025年6月1日",
+        "2025年10月15日"
+      ],
+      "avg_chg": -0.8465,
+      "stock_count": 63
+    },
+    {
+      "name": "转基因",
+      "freq": 2,
+      "logic_kw": "基因",
+      "sample_dates": [
+        "2025年5月15日",
+        "2025年9月15日"
+      ],
+      "avg_chg": -1.7054,
+      "stock_count": 20
+    }
+  ],
+  "flagged": [
+    {
+      "name": "赛马概念",
+      "freq": 7,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年3月15日",
+        "2025年6月1日"
+      ]
+    },
+    {
+      "name": "动物疫苗",
+      "freq": 4,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年5月15日",
+        "2025年6月1日"
+      ]
+    },
+    {
+      "name": "同花顺果指数",
+      "freq": 4,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年9月15日",
+        "2025年10月15日"
+      ]
+    },
+    {
+      "name": "幽门螺杆菌概念",
+      "freq": 4,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年3月15日",
+        "2025年5月15日"
+      ]
+    },
+    {
+      "name": "禽流感",
+      "freq": 4,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年5月15日",
+        "2025年6月1日"
+      ]
+    },
+    {
+      "name": "BC电池",
+      "freq": 3,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年8月1日",
+        "2026年1月15日"
+      ]
+    },
+    {
+      "name": "NMN概念",
+      "freq": 3,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年5月15日",
+        "2025年9月15日"
+      ]
+    },
+    {
+      "name": "仿制药一致性评价",
+      "freq": 3,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年5月15日",
+        "2025年6月1日"
+      ]
+    },
+    {
+      "name": "养鸡",
+      "freq": 3,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年5月15日",
+        "2025年6月1日"
+      ]
+    },
+    {
+      "name": "国家大基金持股",
+      "freq": 3,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年12月1日",
+        "2026年1月15日"
+      ]
+    },
+    {
+      "name": "太赫兹",
+      "freq": 3,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年6月15日",
+        "2025年12月1日"
+      ]
+    },
+    {
+      "name": "海南自贸区",
+      "freq": 3,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年3月15日",
+        "2026年3月1日"
+      ]
+    },
+    {
+      "name": "猴痘概念",
+      "freq": 3,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年6月1日",
+        "2025年8月1日"
+      ]
+    },
+    {
+      "name": "玉米",
+      "freq": 3,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年3月15日",
+        "2025年5月15日"
+      ]
+    },
+    {
+      "name": "辅助生殖",
+      "freq": 3,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年3月15日",
+        "2025年6月1日"
+      ]
+    },
+    {
+      "name": "重组蛋白",
+      "freq": 3,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年5月15日",
+        "2025年6月1日"
+      ]
+    },
+    {
+      "name": "金属铅",
+      "freq": 3,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年12月1日",
+        "2026年1月15日"
+      ]
+    },
+    {
+      "name": "金属铜",
+      "freq": 3,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年12月1日",
+        "2026年1月15日"
+      ]
+    },
+    {
+      "name": "金属锌",
+      "freq": 3,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年12月1日",
+        "2026年1月15日"
+      ]
+    },
+    {
+      "name": "预制菜",
+      "freq": 3,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年3月15日",
+        "2025年5月15日"
+      ]
+    },
+    {
+      "name": "DRG/DIP",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年8月1日",
+        "2025年10月15日"
+      ]
+    },
+    {
+      "name": "EDR概念",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年9月15日",
+        "2026年1月15日"
+      ]
+    },
+    {
+      "name": "MCU芯片",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年12月1日",
+        "2026年5月1日"
+      ]
+    },
+    {
+      "name": "MLOps概念",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年8月1日",
+        "2026年3月1日"
+      ]
+    },
+    {
+      "name": "OLED",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年12月1日",
+        "2026年1月15日"
+      ]
+    },
+    {
+      "name": "PET铜箔",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2026年1月15日",
+        "2026年5月1日"
+      ]
+    },
+    {
+      "name": "PM2.5",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年8月1日",
+        "2025年9月15日"
+      ]
+    },
+    {
+      "name": "TOPCON电池",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年8月1日",
+        "2026年5月1日"
+      ]
+    },
+    {
+      "name": "三胎概念",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年3月15日",
+        "2025年5月15日"
+      ]
+    },
+    {
+      "name": "中芯国际概念",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2026年1月15日",
+        "2026年5月1日"
+      ]
+    },
+    {
+      "name": "乳业",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年3月15日",
+        "2025年5月15日"
+      ]
+    },
+    {
+      "name": "云办公",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年8月1日",
+        "2026年3月1日"
+      ]
+    },
+    {
+      "name": "云游戏",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年9月15日",
+        "2025年12月1日"
+      ]
+    },
+    {
+      "name": "化肥",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年6月15日",
+        "2026年1月15日"
+      ]
+    },
+    {
+      "name": "医美概念",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年5月15日",
+        "2025年6月1日"
+      ]
+    },
+    {
+      "name": "医药电商",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年6月1日",
+        "2025年8月1日"
+      ]
+    },
+    {
+      "name": "华为昇腾",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年8月1日",
+        "2026年3月1日"
+      ]
+    },
+    {
+      "name": "华为欧拉",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年8月1日",
+        "2026年3月1日"
+      ]
+    },
+    {
+      "name": "华为汽车",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年9月15日",
+        "2025年10月15日"
+      ]
+    },
+    {
+      "name": "华为盘古",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年8月1日",
+        "2026年3月1日"
+      ]
+    },
+    {
+      "name": "华为鲲鹏",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年8月1日",
+        "2026年3月1日"
+      ]
+    },
+    {
+      "name": "培育钻石",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年6月15日",
+        "2026年3月1日"
+      ]
+    },
+    {
+      "name": "宠物经济",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年3月15日",
+        "2025年5月15日"
+      ]
+    },
+    {
+      "name": "小米汽车",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年9月15日",
+        "2025年10月15日"
+      ]
+    },
+    {
+      "name": "小金属概念",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2026年1月15日",
+        "2026年3月1日"
+      ]
+    },
+    {
+      "name": "成飞概念",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年6月15日",
+        "2026年5月1日"
+      ]
+    },
+    {
+      "name": "房屋检测",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年8月1日",
+        "2025年9月15日"
+      ]
+    },
+    {
+      "name": "手机游戏",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年3月15日",
+        "2025年9月15日"
+      ]
+    },
+    {
+      "name": "托育服务",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年3月15日",
+        "2025年8月1日"
+      ]
+    },
+    {
+      "name": "拼多多概念",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年3月15日",
+        "2025年10月15日"
+      ]
+    },
+    {
+      "name": "毛发医疗",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年5月15日",
+        "2025年6月1日"
+      ]
+    },
+    {
+      "name": "毫米波雷达",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年10月15日",
+        "2025年12月1日"
+      ]
+    },
+    {
+      "name": "民营医院",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年3月15日",
+        "2025年6月1日"
+      ]
+    },
+    {
+      "name": "汽车热管理",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年9月15日",
+        "2025年10月15日"
+      ]
+    },
+    {
+      "name": "流感",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年5月15日",
+        "2025年6月1日"
+      ]
+    },
+    {
+      "name": "海工装备",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年3月15日",
+        "2025年6月15日"
+      ]
+    },
+    {
+      "name": "猪肉",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年6月1日",
+        "2025年9月15日"
+      ]
+    },
+    {
+      "name": "电子竞技",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年9月15日",
+        "2025年12月1日"
+      ]
+    },
+    {
+      "name": "租售同权",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年3月15日",
+        "2026年5月1日"
+      ]
+    },
+    {
+      "name": "维生素",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年5月15日",
+        "2025年6月1日"
+      ]
+    },
+    {
+      "name": "网络游戏",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年3月15日",
+        "2025年9月15日"
+      ]
+    },
+    {
+      "name": "肝炎概念",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年5月15日",
+        "2025年6月1日"
+      ]
+    },
+    {
+      "name": "航空发动机",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年6月15日",
+        "2026年5月1日"
+      ]
+    },
+    {
+      "name": "芬太尼",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年6月1日",
+        "2025年9月15日"
+      ]
+    },
+    {
+      "name": "超超临界发电",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年6月15日",
+        "2026年3月1日"
+      ]
+    },
+    {
+      "name": "足球概念",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年6月1日",
+        "2026年5月1日"
+      ]
+    },
+    {
+      "name": "金属钴",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2026年1月15日",
+        "2026年3月1日"
+      ]
+    },
+    {
+      "name": "金属镍",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2026年1月15日",
+        "2026年3月1日"
+      ]
+    },
+    {
+      "name": "长安汽车概念",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年9月15日",
+        "2025年10月15日"
+      ]
+    },
+    {
+      "name": "黄金概念",
+      "freq": 2,
+      "issues": [
+        "无明确产业逻辑关键词"
+      ],
+      "has_logic": false,
+      "logic_kw": "",
+      "sample_dates": [
+        "2025年6月15日",
+        "2026年3月1日"
+      ]
+    },
+    {
+      "name": "6G概念",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "6G",
+      "sample_dates": [
+        "2025年12月1日"
+      ]
+    },
+    {
+      "name": "AI PC",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "AI",
+      "sample_dates": [
+        "2025年12月1日"
+      ]
+    },
+    {
+      "name": "AIGC概念",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "AI",
+      "sample_dates": [
+        "2025年8月1日"
+      ]
+    },
+    {
+      "name": "AI智能体",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "AI",
+      "sample_dates": [
+        "2025年8月1日"
+      ]
+    },
+    {
+      "name": "AI眼镜",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "AI",
+      "sample_dates": [
+        "2025年12月1日"
+      ]
+    },
+    {
+      "name": "AI语料",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "AI",
+      "sample_dates": [
+        "2025年8月1日"
+      ]
+    },
+    {
+      "name": "MicroLED概念",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "CRO",
+      "sample_dates": [
+        "2025年12月1日"
+      ]
+    },
+    {
+      "name": "PEEK材料",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "PEEK",
+      "sample_dates": [
+        "2025年10月15日"
+      ]
+    },
+    {
+      "name": "信创",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "信创",
+      "sample_dates": [
+        "2026年3月1日"
+      ]
+    },
+    {
+      "name": "光刻机",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "光刻机",
+      "sample_dates": [
+        "2026年1月15日"
+      ]
+    },
+    {
+      "name": "共封装光学(CPO)",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "CPO",
+      "sample_dates": [
+        "2025年10月15日"
+      ]
+    },
+    {
+      "name": "军工信息化",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "军工",
+      "sample_dates": [
+        "2025年6月15日"
+      ]
+    },
+    {
+      "name": "卫星导航",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "卫星",
+      "sample_dates": [
+        "2026年5月1日"
+      ]
+    },
+    {
+      "name": "商业航天",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "航天",
+      "sample_dates": [
+        "2025年6月15日"
+      ]
+    },
+    {
+      "name": "固态电池",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "固态电池",
+      "sample_dates": [
+        "2026年1月15日"
+      ]
+    },
+    {
+      "name": "基因测序",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "基因",
+      "sample_dates": [
+        "2025年3月15日"
+      ]
+    },
+    {
+      "name": "工业母机",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "工业母机",
+      "sample_dates": [
+        "2026年5月1日"
+      ]
+    },
+    {
+      "name": "换电概念",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "换电",
+      "sample_dates": [
+        "2025年10月15日"
+      ]
+    },
+    {
+      "name": "智能电网",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "智能电网",
+      "sample_dates": [
+        "2025年10月15日"
+      ]
+    },
+    {
+      "name": "机器视觉",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "机器视觉",
+      "sample_dates": [
+        "2026年5月1日"
+      ]
+    },
+    {
+      "name": "柔性屏(折叠屏)",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "折叠屏",
+      "sample_dates": [
+        "2025年12月1日"
+      ]
+    },
+    {
+      "name": "稀土永磁",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "稀土",
+      "sample_dates": [
+        "2026年3月1日"
+      ]
+    },
+    {
+      "name": "第三代半导体",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "第三代半导体",
+      "sample_dates": [
+        "2026年5月1日"
+      ]
+    },
+    {
+      "name": "算力租赁",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "算力",
+      "sample_dates": [
+        "2026年3月1日"
+      ]
+    },
+    {
+      "name": "钠离子电池",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "钠离子",
+      "sample_dates": [
+        "2026年1月15日"
+      ]
+    },
+    {
+      "name": "高压快充",
+      "freq": 1,
+      "issues": [
+        "仅出现1次，不满足≥2次"
+      ],
+      "has_logic": true,
+      "logic_kw": "高压快充",
+      "sample_dates": [
+        "2025年10月15日"
+      ]
+    }
+  ],
+  "rejected": [
+    {
+      "name": "ST板块",
+      "freq": 2,
+      "reason": "黑名单关键词: ST"
+    },
+    {
+      "name": "新型烟草(电子烟)",
+      "freq": 2,
+      "reason": "黑名单关键词: 电子烟"
+    },
+    {
+      "name": "新股与次新股",
+      "freq": 2,
+      "reason": "黑名单关键词: 次新"
+    },
+    {
+      "name": "科创次新股",
+      "freq": 2,
+      "reason": "黑名单关键词: 次新"
+    },
+    {
+      "name": "2025年报预增",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "C2M概念",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "ERP概念",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "IP经济(谷子经济)",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "MiniLED",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "NFT概念",
+      "freq": 1,
+      "reason": "黑名单关键词: NFT"
+    },
+    {
+      "name": "PCB概念",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "Sora概念(文生视频)",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "WiFi6",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "上海自贸区",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "中字头股票",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "中船系",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "中韩自贸区",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "举牌",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "云计算",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "互联网保险",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "互联网金融",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "人造肉",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "代糖概念",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "俄乌冲突概念",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "信托概念",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "免税店",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "兵装重组概念",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "农业种植",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "医疗废物处理",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "华为手机",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "华为海思概念股",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "可燃冰",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "合成生物",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "同花顺中特估100",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "啤酒概念",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "固废处理",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "土地流转",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "在线教育",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "大豆",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "天然气",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "央企国企改革",
+      "freq": 1,
+      "reason": "太宽泛关键词: 国企改革"
+    },
+    {
+      "name": "广东自贸区",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "数字孪生",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "数据安全",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "新疆振兴",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "无线耳机",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "星闪概念",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "智慧政务",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "智能穿戴",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    },
+    {
+      "name": "智能音箱",
+      "freq": 1,
+      "reason": "仅出现1次，不满足≥2次; 无明确产业逻辑关键词"
+    }
+  ]
+}
